@@ -1,0 +1,3 @@
+[submodule "lib-keyboard_menu_freertos"]
+	path = lib/keyboard_menu_freertos
+	url = git@github.com:ArvoreDosSaberes/keyboard_menu_freertos.git
