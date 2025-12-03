@@ -23,7 +23,7 @@ void vNetworkPollTask(void *pvParameters) {
     bool led_on = false;
 
     for (;;) {
-        LOG_INFO("[Network Poll Task] Polling...\n");
+        printf(".");
         cyw43_arch_poll();
 
         led_on = !led_on;

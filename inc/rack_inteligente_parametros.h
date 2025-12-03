@@ -39,10 +39,28 @@
 #define I2C_SCL_PIN 1
 #define I2C_BAUD_RATE 400000
 
-
+/** 
+ * @brief Pino do Buzzer.
+ */
 #define RACK_ALARM_PIN      10
-#define RACK_DOOR_STATE_PIN 8
+/**
+ * @brief Pino que indica o estado da porta (entrada).
+ */
+#define RACK_DOOR_STATE_PIN 5
+/**
+ * @brief Pino do travamento da porta (saída).
+ */
 #define RACK_DOOR_LOCK_PIN  2
+/**
+ * @brief Tempo limite para alerta de porta aberta (20 minutos em ms).
+ */
+#define DOOR_OPEN_ALERT_TIMEOUT_MS  (20 * 60 * 1000)
+/**
+ * @brief Intervalo de verificação do timeout (1 segundo).
+ */
+#define DOOR_CHECK_INTERVAL_MS      (1000)
+
+
 
 #define LEDG 13 //verde
 #define LEDB 12 //azul
@@ -68,16 +86,18 @@
 #define RACK_SIGN_ON_TASK_DELAY             (1000)
 
 #define RACK_NETWORK_POLL_TASK_STACK_SIZE   (configMINIMAL_STACK_SIZE * 2)
-#define RACK_NETWORK_POLL_TASK_PRIORITY     (tskIDLE_PRIORITY)
-#define RACK_NETWORK_POLL_TASK_DELAY        (2000)
+// NOTA: Prioridade aumentada para garantir que a stack TCP/IP seja processada regularmente
+// Prioridade 0 (idle) causava perda de conexão Wi-Fi e timeouts MQTT
+#define RACK_NETWORK_POLL_TASK_PRIORITY     (tskIDLE_PRIORITY + 2)
+#define RACK_NETWORK_POLL_TASK_DELAY        (300)
 
 #define RACK_TILT_TASK_STACK_SIZE           (configMINIMAL_STACK_SIZE * 2)
 #define RACK_TILT_TASK_PRIORITY             (tskIDLE_PRIORITY + 5)
 #define RACK_TILT_TASK_DELAY                (500)
 
-#define RACK_GPS_TASK_DELAY                 (2000)
+#define RACK_GPS_TASK_DELAY                 (3000)
 
-#define RACK_TMP_HUM_TASK_DELAY             (500)
+#define RACK_TMP_HUM_TASK_DELAY             (1000)
 
 #define TILT_THRESHOLD                      (0.015f)
 

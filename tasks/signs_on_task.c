@@ -1,4 +1,5 @@
 #include "FreeRTOS.h"
+#include "log_vt100.h"
 #include "oled.h"
 #include "oled_freeRTOS.h"
 #include "task.h"
@@ -11,6 +12,7 @@
 void vSignsOnTask(void *pvParameters) {
     (void) pvParameters;
 
+    LOG_INFO("SignsOnTask Iniciando...");
     // Configura os pinos dos LEDs como saída
     gpio_init(LEDB);
     gpio_set_dir(LEDB, GPIO_OUT);
