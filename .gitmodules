@@ -1,3 +1,9 @@
 [submodule "lib-keyboard_menu_freertos"]
 	path = lib/keyboard_menu_freertos
 	url = git@github.com:ArvoreDosSaberes/keyboard_menu_freertos.git
+[submodule "keyboard"]
+	path = lib/keyboard
+	url = git@github.com:ArvoreDosSaberes/keyboard.git
+[submodule "log_vt100"]
+	path = lib/log_vt100
+	url = github.com:ArvoreDosSaberes/microcontroler_log_vt100.git
