@@ -96,16 +96,12 @@ void MPU6050::getAccelleration(VECT_3D *vect, float scale) {
  * @param scale Fator de escala aplicado aos dados brutos.
  */
 void MPU6050::getGyroscope(VECT_3D *vect, float scale) {
-  #ifdef I2C_USE_FREERTOS
-  taskENTER_CRITICAL();
-  #endif
+  // NOTA: Não usar taskENTER_CRITICAL aqui pois readRaw usa I2C com semáforo
+  // A proteção do barramento I2C é feita pelo semáforo em I2C::beginTransmission
   readRaw();
   vect->x = (float) raw[4] / scale;
   vect->y = (float) raw[5] / scale;
   vect->z = (float) raw[6] / scale;
-  #ifdef I2C_USE_FREERTOS
-  taskEXIT_CRITICAL();
-  #endif
 }
 
 /**
@@ -113,14 +109,10 @@ void MPU6050::getGyroscope(VECT_3D *vect, float scale) {
  * @return Temperatura em graus Celsius.
  */
 float MPU6050::getTemp() {
-  #ifdef I2C_USE_FREERTOS
-  taskENTER_CRITICAL();
-  #endif
+  // NOTA: Não usar taskENTER_CRITICAL aqui pois readRaw usa I2C com semáforo
+  // A proteção do barramento I2C é feita pelo semáforo em I2C::beginTransmission
   readRaw();
   float temp = (float) raw[3]/340.0 + 36.53;
-  #ifdef I2C_USE_FREERTOS
-  taskEXIT_CRITICAL();
-  #endif
   return temp;
 }
 
