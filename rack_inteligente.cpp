@@ -1,10 +1,34 @@
-/*
- * @brief Rack Inteligente, firmware responsável para gerar leituras de
- * temperatura, estado das portas, teclado e outros sensores do rack
+/**
+ * @file rack_inteligente.cpp
+ * @brief Firmware principal do sistema Rack Inteligente.
+ *
+ * Este arquivo contém o ponto de entrada do firmware e a inicialização de todos
+ * os subsistemas do rack inteligente, incluindo:
+ * - Conexão Wi-Fi e cliente MQTT
+ * - Tasks FreeRTOS para sensores e atuadores
+ * - Comunicação com dashboard via MQTT
+ * - Controle de porta via servo motor
+ * - Alarmes sonoros via PWM
+ *
+ * @section Arquitetura
+ * O firmware utiliza FreeRTOS com múltiplas tasks para:
+ * - Leitura de sensores (temperatura, umidade, inclinação, GPS)
+ * - Monitoramento de estado da porta
+ * - Comunicação MQTT (publicação e assinatura)
+ * - Interface OLED com menu
+ * - Teclado matricial
+ *
+ * @section TopicosAck Tópicos MQTT com ACK
+ * O firmware implementa confirmação de comandos:
+ * - Recebe: {base}/{rack_id}/command/{door|ventilation|buzzer}
+ * - Publica ACK: {base}/{rack_id}/ack/{door|ventilation|buzzer}
  *
  * @author Carlos Delfino <consultoria@carlosdelfino.eti.br>
- * @version 0.1.0
- * @date 2025-11-16
+ * @author EmbarcaTech TIC-27
+ * @version 1.0.0
+ * @date 2025
+ * 
+ * @copyright Copyright (c) 2025 EmbarcaTech
  */
 #include "hardware/adc.h"
 #include "hardware/gpio.h"
@@ -69,40 +93,88 @@
 
 extern "C" {
 
+/**
+ * @defgroup GlobalVars Variáveis Globais
+ * @brief Variáveis compartilhadas entre módulos do firmware.
+ * @{
+ */
+
+/** @brief Objeto I2C para comunicação com sensores (DHT, OLED, etc). */
 I2C i2c(I2C_PORT, I2C_SDA_PIN, I2C_SCL_PIN);
-// Variáveis Globais
+
+/** @brief Estrutura com dados ambientais do rack (temperatura, umidade, porta, inclinação). */
 environment_t environment;
 
+/** @brief Flag indicando se cliente MQTT está conectado ao broker. */
 bool mqtt_connected = false;
+
+/** @brief Ponteiro para o cliente MQTT lwIP. */
 mqtt_client_t *mqtt_client;
+
+/** @brief Tópico base MQTT do rack no formato "{base}/{rack_id}". */
 char mqtt_rack_topic[50];
+
+/** @brief Nome/identificador do rack (definido por MQTT_RACK_NUMBER). */
 char rack_name[50];
 
-// Variáveis Locais
+/** @} */ // fim GlobalVars
+
+/**
+ * @defgroup LocalVars Variáveis Locais
+ * @brief Variáveis de uso interno do módulo principal.
+ * @{
+ */
+
+/** @brief Endereço IP do broker MQTT resolvido via DNS. */
 static ip_addr_t broker_ip;
 
-// Flags para identificar qual tópico de comando foi recebido
+/** @brief Flag indicando recepção de comando de porta via MQTT. */
 static bool mqttInTopicDoor = false;
-static bool mqttInTopicVentilation = false;
-static bool mqttInTopicBuzzer = false;
-static bool mqttInTopicAlert = false;  // Mantido para compatibilidade
 
-// Protótipos de Funções
+/** @brief Flag indicando recepção de comando de ventilação via MQTT. */
+static bool mqttInTopicVentilation = false;
+
+/** @brief Flag indicando recepção de comando de buzzer via MQTT. */
+static bool mqttInTopicBuzzer = false;
+
+/** @brief Flag de alerta (mantido para compatibilidade). @deprecated */
+static bool mqttInTopicAlert = false;
+
+/** @} */ // fim LocalVars
+
+/* ============================================================================
+ * Protótipos de Funções
+ * ============================================================================ */
+
 static void mqtt_connection_callback(mqtt_client_t *client, void *arg,
                                      mqtt_connection_status_t status);
-
 static void dns_check_callback(const char *name, const ip_addr_t *ipaddr,
                                void *callback_arg);
-
 static void inpub_cb(void *arg, const char *topic, u32_t tot_len);
 static void indata_cb(void *arg, const u8_t *data, u16_t len, u8_t flags);
-
 static inline void openDoor();
 static inline void closeDoor();
 static inline void turnOnAlarm();
 static inline void turnOffAlarm();
 
-// Função Principal
+/**
+ * @brief Função principal do firmware.
+ *
+ * Inicializa todos os subsistemas na seguinte ordem:
+ * 1. Wi-Fi e conexão com rede
+ * 2. I2C para sensores
+ * 3. Display OLED
+ * 4. Cliente MQTT
+ * 5. Tasks FreeRTOS para sensores e atuadores
+ *
+ * Após inicialização, inicia o scheduler FreeRTOS.
+ * Esta função não retorna em operação normal.
+ *
+ * @return int Código de erro (apenas em caso de falha na inicialização)
+ * @retval 0 Sucesso (não deve retornar)
+ * @retval -1 Falha na inicialização de Wi-Fi
+ * @retval -1 Falha na conexão MQTT
+ */
 int main() {
   stdio_init_all();
   log_set_level(LOG_LEVEL_INFO);

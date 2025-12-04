@@ -1,50 +1,132 @@
+/**
+ * @file rack_inteligente_parametros.h
+ * @brief Parâmetros de configuração do firmware Rack Inteligente.
+ *
+ * Este arquivo define todas as constantes de configuração do firmware,
+ * incluindo pinos GPIO, parâmetros de tasks FreeRTOS, timeouts e limiares.
+ *
+ * @section Configuracao Configuração via CMake
+ * As seguintes macros devem ser definidas via CMake (env.cmake):
+ * - WIFI_SSID: Nome da rede Wi-Fi
+ * - WIFI_PASSWORD: Senha da rede Wi-Fi
+ * - MQTT_BROKER: Endereço do broker MQTT
+ * - MQTT_PORT: Porta do broker MQTT
+ * - MQTT_CLIENT_ID: ID do cliente MQTT
+ * - MQTT_USERNAME: Usuário MQTT
+ * - MQTT_PASSWORD: Senha MQTT
+ * - MQTT_BASE_TOPIC: Tópico base MQTT
+ * - MQTT_RACK_NUMBER: Número/ID do rack
+ *
+ * @author EmbarcaTech TIC-27
+ * @version 1.0.0
+ * @date 2025
+ */
+
+#ifndef RACK_INTELIGENTE_PARAMETROS_H
+#define RACK_INTELIGENTE_PARAMETROS_H
+
+/* ============================================================================
+ * Verificação de Macros Obrigatórias (definidas via CMake)
+ * ============================================================================ */
+
 #ifndef WIFI_SSID
-#error Need to define WIFI_SSID
+#error "WIFI_SSID não definido. Configure em env.cmake."
 #endif
 
 #ifndef WIFI_PASSWORD
-#error Need to define WIFI_PASSWORD
+#error "WIFI_PASSWORD não definido. Configure em env.cmake."
 #endif
 
 #ifndef MQTT_BROKER
-#error Need to define MQTT_BROKER
+#error "MQTT_BROKER não definido. Configure em env.cmake."
 #endif
 
 #ifndef MQTT_PORT
-#error Need to define MQTT_PORT
+#error "MQTT_PORT não definido. Configure em env.cmake."
 #endif
 
 #ifndef MQTT_CLIENT_ID
-#error Need to define MQTT_CLIENT_ID
+#error "MQTT_CLIENT_ID não definido. Configure em env.cmake."
 #endif
 
 #ifndef MQTT_USERNAME
-#error Need to define MQTT_USERNAME
+#error "MQTT_USERNAME não definido. Configure em env.cmake."
 #endif
 
 #ifndef MQTT_PASSWORD
-#error Need to define MQTT_PASSWORD
+#error "MQTT_PASSWORD não definido. Configure em env.cmake."
 #endif
 
 #ifndef MQTT_BASE_TOPIC
-#error Need to define MQTT_BASE_TOPIC
+#error "MQTT_BASE_TOPIC não definido. Configure em env.cmake."
 #endif
 
 #ifndef MQTT_RACK_NUMBER
-#error Need to define MQTT_RACK_NUMBER
+#error "MQTT_RACK_NUMBER não definido. Configure em env.cmake."
 #endif
 
-#define LEDG 11 //verde
-#define LEDB 12 //azul
-#define LEDR 13 //vermelho
+/* ============================================================================
+ * Pinos GPIO - LEDs da BitDogLab
+ * ============================================================================ */
 
+/**
+ * @defgroup LedPins Pinos de LEDs
+ * @brief Pinos GPIO dos LEDs RGB da placa BitDogLab.
+ * @{
+ */
+
+/** @brief Pino do LED verde. */
+#define LEDG 11
+
+/** @brief Pino do LED azul. */
+#define LEDB 12
+
+/** @brief Pino do LED vermelho. */
+#define LEDR 13
+
+/** @} */ // fim LedPins
+
+/* ============================================================================
+ * Configuração I2C
+ * ============================================================================ */
+
+/**
+ * @defgroup I2CConfig Configuração I2C
+ * @brief Parâmetros do barramento I2C para sensores.
+ * @{
+ */
+
+/** @brief Porta I2C utilizada (i2c0 ou i2c1). */
 #define I2C_PORT i2c0
+
+/** @brief Pino SDA (dados) do I2C. */
 #define I2C_SDA_PIN 0
+
+/** @brief Pino SCL (clock) do I2C. */
 #define I2C_SCL_PIN 1
+
+/** @brief Frequência do clock I2C em Hz (400kHz = Fast Mode). */
 #define I2C_BAUD_RATE 400000
 
+/** @} */ // fim I2CConfig
+
+/* ============================================================================
+ * Coordenadas GPS Padrão
+ * ============================================================================ */
+
+/**
+ * @defgroup GPSDefault Coordenadas GPS Padrão
+ * @brief Coordenadas GPS fixas do rack (Aquiraz-CE, Brasil).
+ * @{
+ */
+
+/** @brief Latitude padrão em graus decimais. */
 #define RACK_LATITUDE  (-3.9012)
+
+/** @brief Longitude padrão em graus decimais. */
 #define RACK_LONGITUDE (-38.3876)
+
+/** @} */ // fim GPSDefault
 /** 
  * @brief Pino do Buzzer.
  */
@@ -115,7 +197,12 @@
 
 #define RACK_TMP_HUM_TASK_DELAY             (1000)
 
+/** @brief Limiar de inclinação para detecção de tilt (em g). */
 #define TILT_THRESHOLD                      (0.015f)
 
-
+/** @brief Timeout de conexão Wi-Fi em milissegundos. */
 #define RACK_WIFI_TIMEOUT                   (20000)
+
+/** @} */ // fim TaskConfig
+
+#endif // RACK_INTELIGENTE_PARAMETROS_H
