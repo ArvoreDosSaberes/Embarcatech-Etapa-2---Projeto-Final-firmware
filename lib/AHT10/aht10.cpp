@@ -2,8 +2,11 @@
 #include "log_vt100.h"
 #include "math.h"
 #include "I2C.hpp"
+
+#ifdef I2C_USE_FREERTOS
 #include "FreeRTOS.h"
 #include "task.h"
+#endif
 
 Sensor_CMD eSensorCalibrateCmd[3] = {0xE1, 0x08, 0x00};
 Sensor_CMD eSensorNormalCmd[3]    = {0xA8, 0x00, 0x00};
@@ -59,12 +62,12 @@ unsigned long readSensor(I2C *i2c, bool GetDataCmd)
 
 float GetTemperature(I2C *i2c)
 {
-    #ifdef I2C_USE_FREERTOS
+    #ifdef FREERTOS_ENABLED
     taskENTER_CRITICAL();
     #endif
     float value = readSensor(i2c, GetTempCmd);
     float temperature = ((200 * value) / 1048576) - 50;
-    #ifdef I2C_USE_FREERTOS
+    #ifdef FREERTOS_ENABLED
     taskEXIT_CRITICAL();
     #endif
     return temperature;
@@ -72,18 +75,18 @@ float GetTemperature(I2C *i2c)
 
 float GetHumidity(I2C *i2c)
 {
-    #ifdef I2C_USE_FREERTOS
+    #ifdef FREERTOS_ENABLED
     taskENTER_CRITICAL();
     #endif
     float value = readSensor(i2c, GetRHumidityCmd);
     if (value == 0) {
-        #ifdef I2C_USE_FREERTOS
+        #ifdef FREERTOS_ENABLED
         taskEXIT_CRITICAL();
         #endif
         return 0;
     }
     float humidity = value * 100 / 1048576;
-    #ifdef I2C_USE_FREERTOS
+    #ifdef FREERTOS_ENABLED
     taskEXIT_CRITICAL();
     #endif
     return humidity;
@@ -93,15 +96,13 @@ float GetDewPoint(I2C *i2c)
 {
   float humidity = GetHumidity(i2c);
   float temperature = GetTemperature(i2c);
-
-    #ifdef I2C_USE_FREERTOS
-    taskENTER_CRITICAL();
-    #endif
+  #ifdef FREERTOS_ENABLED
+  taskENTER_CRITICAL();
+  #endif
   float gamma = log(humidity / 100) + WATER_VAPOR * temperature / (BAROMETRIC_PRESSURE + temperature);
   float dewPoint = BAROMETRIC_PRESSURE * gamma / (WATER_VAPOR - gamma);
-  
-    #ifdef I2C_USE_FREERTOS
-    taskEXIT_CRITICAL();
-    #endif
+  #ifdef FREERTOS_ENABLED
+  taskEXIT_CRITICAL();
+  #endif
   return dewPoint;
 }
