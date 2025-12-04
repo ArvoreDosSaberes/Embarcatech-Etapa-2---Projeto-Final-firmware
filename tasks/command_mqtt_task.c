@@ -23,6 +23,7 @@
 #include "rack_inteligente.h"
 #include "command_mqtt_task.h"
 #include "buzzer_pwm_task.h"
+#include "door_servo_task.h"
 
 /* Referências externas */
 extern bool mqtt_connected;
@@ -30,14 +31,12 @@ extern mqtt_client_t *mqtt_client;
 extern char mqtt_rack_topic[50];
 
 /* Estados internos dos atuadores */
-static bool doorState = false;           /* false = fechada, true = aberta */
 static bool ventilationState = false;    /* false = desligada, true = ligada */
 static BuzzerState buzzerState = BUZZER_OFF;
 
-/* Pinos dos atuadores (a serem definidos em rack_inteligente_parametros.h) */
-#ifndef RACK_VENTILATION_PIN
-#define RACK_VENTILATION_PIN 14  /* Pino padrão para ventilação */
-#endif
+/* Nota: Estado da porta é gerenciado pelo módulo door_servo_task */
+
+/* Pinos dos atuadores (definidos em rack_inteligente_parametros.h) */
 
 #ifndef RACK_BUZZER_PIN
 #define RACK_BUZZER_PIN 15       /* Pino padrão para buzzer (usa RACK_ALARM_PIN) */
@@ -47,14 +46,16 @@ static BuzzerState buzzerState = BUZZER_OFF;
  * @brief Inicializa os pinos GPIO dos atuadores.
  * 
  * Nota: O buzzer é inicializado pelo módulo buzzer_pwm_task.
+ * Nota: O servo da porta é inicializado pelo módulo door_servo_task.
  */
 static void initActuatorPins(void) {
     /* Inicializa pino de ventilação */
-    gpio_init(RACK_VENTILATION_PIN);
-    gpio_set_dir(RACK_VENTILATION_PIN, GPIO_OUT);
-    gpio_put(RACK_VENTILATION_PIN, 0);
+    gpio_init(RACK_VENTILATOR_PIN);
+    gpio_set_dir(RACK_VENTILATOR_PIN, GPIO_OUT);
+    gpio_put(RACK_VENTILATOR_PIN, 0);
     
     /* Buzzer inicializado pelo módulo buzzer_pwm_task */
+    /* Servo da porta inicializado pelo módulo door_servo_task */
     
     LOG_INFO("[Command] GPIO dos atuadores inicializados");
 }
@@ -66,6 +67,12 @@ static void initActuatorPins(void) {
  */
 bool commandMqttInit(void) {
     initActuatorPins();
+    
+    /* Inicializa módulo de servo da porta */
+    if (!doorServoInit()) {
+        LOG_WARN("[Command] Falha ao inicializar servo da porta");
+        return false;
+    }
     
     /* Inicializa módulo de buzzer PWM */
     if (!buzzerPwmInit()) {
@@ -124,23 +131,27 @@ bool publishCommandAck(CommandType commandType, int value) {
 
 /**
  * @brief Executa comando de porta e publica ACK.
+ * 
+ * Controla o servo motor da porta:
+ * - value = 1: Abre a porta (servo em 180°)
+ * - value = 0: Fecha a porta (servo em 0°)
+ * 
+ * O movimento é suave (smooth) para simular uma porta real.
  */
 void processCommandDoor(int value) {
     bool targetState = (value == 1);
     
     LOG_INFO("[Command/Door] Recebido comando: %s", targetState ? "ABRIR" : "FECHAR");
     
-    /* Executa o comando */
+    /* Executa o comando via servo motor */
     if (targetState) {
-        /* Abrir porta - simula destravando a fechadura */
-        gpio_put(RACK_DOOR_STATE_PIN, 1);
-        doorState = true;
-        LOG_INFO("[Command/Door] Porta destravada (aberta)");
+        /* Abrir porta - move servo para 180° */
+        doorServoOpen(true);  /* true = movimento suave */
+        LOG_INFO("[Command/Door] Porta aberta (servo em 180°)");
     } else {
-        /* Fechar porta - simula travando a fechadura */
-        gpio_put(RACK_DOOR_STATE_PIN, 0);
-        doorState = false;
-        LOG_INFO("[Command/Door] Porta travada (fechada)");
+        /* Fechar porta - move servo para 0° */
+        doorServoClose(true);  /* true = movimento suave */
+        LOG_INFO("[Command/Door] Porta fechada (servo em 0°)");
     }
     
     /* Publica confirmação */
@@ -156,7 +167,7 @@ void processCommandVentilation(int value) {
     LOG_INFO("[Command/Ventilation] Recebido comando: %s", targetState ? "LIGAR" : "DESLIGAR");
     
     /* Executa o comando */
-    gpio_put(RACK_VENTILATION_PIN, targetState ? 1 : 0);
+    gpio_put(RACK_VENTILATOR_PIN, targetState ? 1 : 0);
     ventilationState = targetState;
     
     LOG_INFO("[Command/Ventilation] Ventilação %s", targetState ? "LIGADA" : "DESLIGADA");
@@ -201,9 +212,13 @@ void processCommandBuzzer(int value) {
 
 /**
  * @brief Retorna o estado atual da porta.
+ * 
+ * Verifica o estado do servo motor:
+ * - true: Porta aberta (servo em 180°)
+ * - false: Porta fechada (servo em 0°)
  */
 bool getDoorState(void) {
-    return doorState;
+    return doorServoIsOpen();
 }
 
 /**
