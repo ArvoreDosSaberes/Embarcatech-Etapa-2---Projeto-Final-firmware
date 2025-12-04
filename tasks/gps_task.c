@@ -21,8 +21,8 @@ extern EventGroupHandle_t xEventGroup;
 extern environment_t environment;
 
 // Variáveis Locais
-static float latitude = -3.924263;
-static float longitude = -38.453483;
+static float longitude = RACK_LONGITUDE;
+static float latitude = RACK_LATITUDE;
 
 static inline void publish_rack_gps_position();
 
