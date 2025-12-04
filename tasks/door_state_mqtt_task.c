@@ -51,7 +51,7 @@ void vDoorStateMqttTask(void *pvParameters) {
             xDoorStateBitsToWaitFor,
             pdTRUE,
             pdFALSE,
-            pdMS_TO_TICKS(DOOR_CHECK_INTERVAL_MS));
+            pdMS_TO_TICKS(RACK_DOOR_CHECK_INTERVAL_MS));
         
         if ((uxBits & xDoorStateBitsToWaitFor) == xDoorStateBitsToWaitFor) {
             LOG_DEBUG("[Door State MQTT Task] Evento recebido: %d", uxBits);
@@ -84,7 +84,7 @@ static void check_door_open_timeout(void) {
         } else if (!doorAlertTriggered) {
             /* Calcula tempo decorrido */
             TickType_t elapsed = xTaskGetTickCount() - doorOpenedAt;
-            TickType_t timeoutTicks = pdMS_TO_TICKS(DOOR_OPEN_ALERT_TIMEOUT_MS);
+            TickType_t timeoutTicks = pdMS_TO_TICKS(RACK_DOOR_OPEN_ALERT_TIMEOUT_MS);
             
             if (elapsed >= timeoutTicks) {
                 /* Timeout atingido - ativa alerta */
@@ -141,7 +141,7 @@ void publish_door_state(bool gpioState) {
     char topic_door_state[80];
     snprintf(topic_door_state, sizeof(topic_door_state), "%s/environment/door", mqtt_rack_topic);
 
-    const char *message = doorOpen ? "1" : "0";
+    const char *message = doorOpen ? "0" : "1";
 
     LOG_INFO("[MQTT] Publicando: tópico='%s', mensagem='%s'", topic_door_state, message);
 

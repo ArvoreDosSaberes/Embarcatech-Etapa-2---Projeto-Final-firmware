@@ -1,5 +1,5 @@
-#ifndef DOOR_STATE_TASK_H
-#define DOOR_STATE_TASK_H
+#ifndef DOOR_STATE_CALLBACK_H
+#define DOOR_STATE_CALLBACK_H
 
 #include <stdint.h>
 #include <sys/cdefs.h>

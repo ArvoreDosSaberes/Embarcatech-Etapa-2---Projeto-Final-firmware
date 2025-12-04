@@ -9,7 +9,7 @@
 
 // NOTA: LOG_INFO removido do ISR callback - não é seguro usar printf em contexto de interrupção
 
-#include "door_state_task.h"
+#include "door_state_callback.h"
 #include "rack_event_groups.h"
 #include "rack_inteligente.h"
 #include "rack_inteligente_parametros.h"
