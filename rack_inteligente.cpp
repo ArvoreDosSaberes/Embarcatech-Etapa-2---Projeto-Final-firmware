@@ -523,8 +523,11 @@ static void mqtt_connection_callback(mqtt_client_t *client, void *arg,
   if (mqtt_connected) {
     LOG_INFO("[MQTT] Conectado ao broker com sucesso!");
     
-    // Inicializa módulo de comandos
+    // Inicializa módulo de comandos (cria fila e inicializa hardware)
     commandMqttInit();
+    
+    // Inicia task de processamento de comandos (processa fila de forma assíncrona)
+    commandMqttStartTask();
     
     // Subscreve aos tópicos de comando
     subscribeToCommandTopics(client);

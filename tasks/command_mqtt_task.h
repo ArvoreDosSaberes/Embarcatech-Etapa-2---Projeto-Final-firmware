@@ -48,13 +48,15 @@ typedef enum {
 } BuzzerState;
 
 /**
- * @brief Estrutura para armazenar um comando pendente.
+ * @brief Estrutura para armazenar um comando na fila.
+ * 
+ * Usada internamente pela task de comandos para processar
+ * comandos de forma assíncrona fora do callback MQTT.
  */
 typedef struct {
     CommandType type;            /**< Tipo do comando */
     int value;                   /**< Valor do comando */
-    bool pending;                /**< Se há comando pendente */
-} PendingCommand;
+} CommandQueueItem;
 
 /**
  * @brief Inicializa as variáveis e filas do módulo de comandos.
@@ -115,6 +117,14 @@ bool getVentilationState(void);
  * @return Estado atual do buzzer (0-3)
  */
 BuzzerState getBuzzerState(void);
+
+/**
+ * @brief Inicia a task de processamento de comandos.
+ * 
+ * Cria a task FreeRTOS que processa comandos da fila.
+ * Deve ser chamada após commandMqttInit() e após o scheduler iniciar.
+ */
+void commandMqttStartTask(void);
 
 #ifdef __cplusplus
 }

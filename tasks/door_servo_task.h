@@ -25,16 +25,6 @@ extern "C" {
 #endif
 
 /* ============================================================================
- * Definições de ângulos da porta
- * ============================================================================ */
-
-/** @brief Ângulo do servo quando a porta está fechada (graus) */
-#define DOOR_SERVO_ANGLE_CLOSED     0
-
-/** @brief Ângulo do servo quando a porta está aberta (graus) */
-#define DOOR_SERVO_ANGLE_OPEN       180
-
-/* ============================================================================
  * Estados do servo
  * ============================================================================ */
 

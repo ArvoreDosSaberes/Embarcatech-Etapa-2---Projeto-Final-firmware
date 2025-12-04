@@ -77,6 +77,11 @@
  */
 #define RACK_DOOR_SERVO_PIN             RACK_DOOR_LOCK_PIN
 
+/** @brief Ângulo do servo quando a porta está fechada (graus) */
+#define DOOR_SERVO_ANGLE_CLOSED     0
+/** @brief Ângulo do servo quando a porta está aberta (graus) */
+#define DOOR_SERVO_ANGLE_OPEN       179
+
 /* Parâmetros da task do buzzer PWM */
 #define RACK_BUZZER_TASK_STACK_SIZE     (configMINIMAL_STACK_SIZE * 2)
 #define RACK_BUZZER_TASK_PRIORITY       (tskIDLE_PRIORITY + 4)

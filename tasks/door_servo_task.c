@@ -15,6 +15,7 @@
  */
 
 #include "FreeRTOS.h"
+#include "rack_inteligente.h"
 #include "task.h"
 
 #include "hardware/pwm.h"
@@ -48,7 +49,7 @@
 #define SERVO_PULSE_MAX_US      2500
 
 /** @brief Ângulo máximo do servo em graus */
-#define SERVO_ANGLE_MAX         180
+#define SERVO_ANGLE_MAX         DOOR_SERVO_ANGLE_OPEN
 
 /** @brief Delay entre passos do movimento suave (ms) */
 #define SERVO_SMOOTH_STEP_DELAY 15
