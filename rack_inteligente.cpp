@@ -13,9 +13,12 @@
 #include "lwip/dns.h"
 #include "lwip/ip_addr.h"
 #include "pico/cyw43_arch.h"
+#include <hardware/timer.h>
+#include <lwip/arch.h>
 #include <pico/time.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/_intsup.h>
 
 #include "FreeRTOSConfig.h"
 #include "FreeRTOS.h"
@@ -38,13 +41,13 @@
 
 #include "gps_task.h"
 #include "keyboard_task.h"
-#include "door_state_task.h"
 #include "tilt_task.hpp"
 #include "menu_oled_task.h"
-
 #include "network_poll_task.h"
-
 #include "signs_on_task.h"
+
+#include "door_state_callback.h"
+
 
 /*
 #include "tilt_oled_task.h"
@@ -62,9 +65,11 @@
 #include "gps_mqtt_task.h"
 #include "command_mqtt_task.h"
 #include "buzzer_pwm_task.h"
+#include "door_servo_task.h"
 
 extern "C" {
 
+I2C i2c(I2C_PORT, I2C_SDA_PIN, I2C_SCL_PIN);
 // Variáveis Globais
 environment_t environment;
 
@@ -124,7 +129,8 @@ int main() {
   cyw43_arch_enable_sta_mode();
   
   LOG_INFO("[I2C] Inicializando...");
-  I2C i2c(I2C_PORT, I2C_SDA_PIN, I2C_SCL_PIN);
+  // NOTA: Objeto I2C deve ser estático para permanecer válido após vTaskStartScheduler
+  // pois as tasks usam ponteiro para este objeto
   i2c.begin();
   i2c.setClock(I2C_BAUD_RATE);
 
@@ -161,10 +167,13 @@ int main() {
     oled_render_text();
   }
 
+  oled_set_text_line(4, "WiFi Conectado", OLED_ALIGN_CENTER);
+  oled_set_text_line(5, WIFI_SSID, OLED_ALIGN_CENTER);
+
   // Configura GPIO do botão
   LOG_INFO("[GPIO] Configurando GPIO do estado da porta...");
-  oled_set_text_line(2, "Configurando GPIO", OLED_ALIGN_CENTER);
-  oled_render_text();
+  //oled_set_text_line(2, "Configurando GPIO", OLED_ALIGN_CENTER);
+  //oled_render_text();
   gpio_init(RACK_DOOR_STATE_PIN);
   gpio_set_dir(RACK_DOOR_STATE_PIN, GPIO_IN);
   gpio_pull_up(RACK_DOOR_STATE_PIN); // <<< ATENÇÃO: pull-up ativado
@@ -175,8 +184,8 @@ int main() {
       doorStateChangeCallBack);
 
   LOG_INFO("[MQTT] Configurando tópico MQTT...");
-  oled_set_text_line(2, "Configurando MQTT", OLED_ALIGN_CENTER);
-  oled_render_text();
+//  oled_set_text_line(2, "Configurando MQTT", OLED_ALIGN_CENTER);
+//  oled_render_text();
   snprintf(mqtt_rack_topic, sizeof(mqtt_rack_topic), "%s/%s", MQTT_BASE_TOPIC,
            rack_name);
 
@@ -184,48 +193,57 @@ int main() {
   LOG_INFO("[MQTT] Tópico MQTT rack: %s", mqtt_rack_topic);
   char mqttTopicMsg[50];
   snprintf(mqttTopicMsg, sizeof(mqttTopicMsg), "MQTT: %s", mqtt_rack_topic);
-  oled_set_text_line(2, mqttTopicMsg, OLED_ALIGN_CENTER);
-  oled_render_text();
+//  oled_set_text_line(2, mqttTopicMsg, OLED_ALIGN_CENTER);
+//  oled_render_text();
 
   // Inicializa cliente MQTT
   LOG_INFO("[MQTT] Inicializando cliente MQTT...");
-  oled_set_text_line(2, "Inicializando MQTT", OLED_ALIGN_CENTER);
-  oled_render_text();
+//  oled_set_text_line(2, "Inicializando MQTT", OLED_ALIGN_CENTER);
+//  oled_render_text();
   mqtt_client = mqtt_client_new();
 
   // Resolve DNS do broker MQTT
   LOG_INFO("[DNS] Resolvendo broker MQTT...");
-  oled_set_text_line(2, "Resolv. broker MQTT", OLED_ALIGN_CENTER);
-  oled_render_text();
+//  oled_set_text_line(2, "Resolv. broker MQTT", OLED_ALIGN_CENTER);
+//  oled_render_text();
   err_t err =
       dns_gethostbyname(MQTT_BROKER, &broker_ip, dns_check_callback, NULL);
   if (err == ERR_OK) {
     dns_check_callback(MQTT_BROKER, &broker_ip, NULL);
   } else if (err == ERR_INPROGRESS) {
     LOG_INFO("[DNS] Resolvendo...");
-    oled_set_text_line(2, "Resolvendo...", OLED_ALIGN_CENTER);
-    oled_render_text();
-    while (ip_addr_isany(&broker_ip)) sleep_ms(1000);
+//    oled_set_text_line(2, "Resolvendo...", OLED_ALIGN_CENTER);
+//    oled_render_text();
+    while (ip_addr_isany(&broker_ip)) busy_wait_ms(1000);
   } else {
     LOG_WARN("[DNS] Erro ao resolver DNS: %d", err);
-    oled_set_text_line(2, "Erro ao resolver DNS", OLED_ALIGN_CENTER);
-    oled_render_text();
+//    oled_set_text_line(2, "Erro ao resolver DNS", OLED_ALIGN_CENTER);
+//    oled_render_text();
     return -1;
   }
 
   LOG_INFO("[DNS] Resolvido: %s -> %s", MQTT_BROKER, ipaddr_ntoa(&broker_ip));
-  oled_set_text_line(2, ipaddr_ntoa(&broker_ip), OLED_ALIGN_CENTER);
-  oled_render_text();
+//  oled_set_text_line(3, ipaddr_ntoa(&broker_ip), OLED_ALIGN_CENTER);
+//  oled_render_text();
 
+  LOG_INFO("[MQTT] Aguardando tempo, para MQTT conectar");
+  int countTime = 30;
+  while(!mqtt_connected && countTime > 0){
+    busy_wait_ms(1000);
+    log_write(LOG_LEVEL_INFO, "[MQTT] Aguardando MQTT conectar (%d)...\r", countTime);
+//    oled_set_text_line(2, "Aguardando MQTT", OLED_ALIGN_CENTER);
+//    oled_render_text();
+    countTime--;
+  }
   if (mqtt_client == NULL) {
     LOG_WARN("[MQTT] Erro ao inicializar cliente MQTT");
-    oled_set_text_line(2, "Erro ao inicializar MQTT", OLED_ALIGN_CENTER);
-    oled_render_text();
+//    oled_set_text_line(2, "Erro ao inicializar MQTT", OLED_ALIGN_CENTER);
+//    oled_render_text();
     return -1;
   }
-  LOG_INFO("[MQTT] Conectando ao broker MQTT...");
-  oled_set_text_line(2, "Conectando ao broker MQTT", OLED_ALIGN_CENTER);
-  oled_render_text();
+  LOG_INFO("[MQTT] Conectado ao broker MQTT.");
+//  oled_set_text_line(2, "Conectado MQTT", OLED_ALIGN_CENTER);
+//  oled_render_text();
   char mqttDoorTopic[50];
   char mqttAlertTopic[50];
   snprintf(mqttDoorTopic, sizeof(mqttDoorTopic), "%s/%s/door", MQTT_BASE_TOPIC,
@@ -235,22 +253,22 @@ int main() {
   mqtt_set_inpub_callback(mqtt_client, inpub_cb, indata_cb, NULL);
 
   LOG_INFO("[Event Group] Criando grupo de eventos...");
-  oled_set_text_line(2, "Criando grupo de eventos", OLED_ALIGN_CENTER);
-  oled_render_text();
+//  oled_set_text_line(2, "Criando grupo de eventos", OLED_ALIGN_CENTER);
+//  oled_render_text();
   if (!create_event_group()) {
     LOG_WARN("[Event Group] Erro ao criar grupo de eventos");
-    oled_set_text_line(2, "Erro ao criar grupo de eventos", OLED_ALIGN_CENTER);
-    oled_render_text();
+//    oled_set_text_line(2, "Erro ao criar grupo de eventos", OLED_ALIGN_CENTER);
+//    oled_render_text();
     return -1;
   }
 
   LOG_INFO("[Menu Event Group] Criando grupo de eventos do menu...");
-  oled_set_text_line(2, "Criando grupo de eventos do menu", OLED_ALIGN_CENTER);
-  oled_render_text();
+//  oled_set_text_line(2, "Criando grupo de eventos do menu", OLED_ALIGN_CENTER);
+//  oled_render_text();
   if(!create_menu_event_group()){
     LOG_WARN("[Menu Event Group] Erro ao criar grupo de eventos do Menu");
-    oled_set_text_line(2, "Erro ao criar grupo de eventos do Menu", OLED_ALIGN_CENTER);
-    oled_render_text();
+//    oled_set_text_line(2, "Erro ao criar grupo de eventos do Menu", OLED_ALIGN_CENTER);
+//    oled_render_text();
     return -1;
   }
 
@@ -265,11 +283,11 @@ int main() {
   
   xTaskCreate(vTiltTask, "tilt_task",
               RACK_POLLING_TASK_STACK_SIZE,
-              (void*)&i2c, RACK_TILT_TASK_PRIORITY,
+              static_cast<void*>(&i2c), RACK_TILT_TASK_PRIORITY,
               NULL);
   xTaskCreate(vTemperatureHumidityTask, "temp_task",
                RACK_POLLING_TASK_STACK_SIZE,
-               (void*)&i2c, RACK_POLLING_TASK_PRIORITY,
+               static_cast<void*>(&i2c), RACK_POLLING_TASK_PRIORITY,
                NULL);
   xTaskCreate(vGpsTask, "gps_task",
                RACK_POLLING_TASK_STACK_SIZE,
@@ -306,29 +324,6 @@ int main() {
               NULL, RACK_MQTT_TASK_PRIORITY,
               NULL);
 
-  /**
-  xTaskCreate(vDoorStateOledTask, "door_state_oled_task",
-              RACK_OLED_TASK_STACK_SIZE, 
-              NULL, RACK_OLED_TASK_PRIORITY,
-              NULL);
-  xTaskCreate(vGpsOledTask, "gps_oled_task",
-              RACK_OLED_TASK_STACK_SIZE, 
-              NULL, RACK_OLED_TASK_PRIORITY,
-              NULL);
-  xTaskCreate(vTiltOledTask, "tilt_oled_task",
-              RACK_OLED_TASK_STACK_SIZE, 
-              NULL, RACK_OLED_TASK_PRIORITY,
-              NULL);
-  xTaskCreate(vTemperatureOledTask, "temp_oled_task", 
-              RACK_OLED_TASK_STACK_SIZE,
-              NULL, RACK_OLED_TASK_PRIORITY,
-              NULL);
-  xTaskCreate(vHumidityOledTask, "humidity_oled_task", 
-              RACK_OLED_TASK_STACK_SIZE,
-              NULL, RACK_OLED_TASK_PRIORITY,
-              NULL);
-*/
-
   xTaskCreate(vSignsOnTask, "signs_on_task", 
               RACK_SIGN_ON_TASK_STACK_SIZE,
               NULL, RACK_SIGN_ON_TASK_PRIORITY,
@@ -336,8 +331,8 @@ int main() {
 
   // Inicia o scheduler do FreeRTOS (não retorna em operação normal)
   LOG_INFO("[FreeRTOS] Iniciando scheduler...");
-  oled_set_text_line(2, "Iniciando scheduler", OLED_ALIGN_CENTER);
-  oled_render_text();
+//  oled_set_text_line(2, "Iniciando scheduler", OLED_ALIGN_CENTER);
+//  oled_render_text();
   vTaskStartScheduler();
 
   // Se chegar aqui, houve falha ao iniciar o scheduler
@@ -463,17 +458,17 @@ static void indata_cb(void *arg, const u8_t *data, u16_t len, u8_t flags) {
 /**
  * @brief Funções legadas mantidas para compatibilidade.
  * 
- * Estas funções agora delegam para processCommandDoor/processCommandBuzzer
- * que publicam ACK automaticamente.
+ * Estas funções agora delegam para o módulo door_servo_task
+ * que controla o servo motor da porta.
  */
 void openDoor() { 
-  gpio_put(RACK_DOOR_STATE_PIN, 1); 
-  LOG_DEBUG("[Legacy] openDoor chamado");
+  doorServoOpen(true);  /* Movimento suave */
+  LOG_DEBUG("[Legacy] openDoor chamado - servo em 180°");
 }
 
 void closeDoor() { 
-  gpio_put(RACK_DOOR_STATE_PIN, 0); 
-  LOG_DEBUG("[Legacy] closeDoor chamado");
+  doorServoClose(true);  /* Movimento suave */
+  LOG_DEBUG("[Legacy] closeDoor chamado - servo em 0°");
 }
 
 void turnOnAlarm() { 
@@ -563,4 +558,25 @@ void dns_check_callback(const char *name, const ip_addr_t *ipaddr,
                         mqtt_connection_callback, NULL, &ci);
   }
 }
+/**
+ * @brief Hook chamado pelo FreeRTOS quando detecta stack overflow.
+ * 
+ * Esta função é chamada quando configCHECK_FOR_STACK_OVERFLOW está habilitado
+ * e uma task excede seu espaço de stack alocado.
+ * 
+ * @param xTask Handle da task que causou o overflow
+ * @param pcTaskName Nome da task que causou o overflow
+ */
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
+    (void)xTask;  
+    LOG_WARN("[FreeRTOS] STACK OVERFLOW detectado na task: %s", pcTaskName);
+    // Loop infinito para facilitar debug - o sistema deve ser reiniciado
+    bool state = false;
+    for (;;) {
+      gpio_put(LEDR, state);
+      state = !state;
+      busy_wait_ms(200);
+    }
+}
+
 }
