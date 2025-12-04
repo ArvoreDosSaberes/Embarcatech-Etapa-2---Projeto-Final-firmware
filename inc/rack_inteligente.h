@@ -4,8 +4,8 @@
 #include <stdbool.h>
 #include "lwip/apps/mqtt.h"
 
-#define DOOR_OPEN true
-#define DOOR_CLOSED false
+#define RACK_DOOR_OPEN true
+#define RACK_DOOR_CLOSED false
 
 #ifdef __cplusplus
 extern "C" {

@@ -34,11 +34,17 @@
 #error Need to define MQTT_RACK_NUMBER
 #endif
 
+#define LEDG 11 //verde
+#define LEDB 12 //azul
+#define LEDR 13 //vermelho
+
 #define I2C_PORT i2c0
 #define I2C_SDA_PIN 0
 #define I2C_SCL_PIN 1
 #define I2C_BAUD_RATE 400000
 
+#define RACK_LATITUDE  (-3.9012)
+#define RACK_LONGITUDE (-38.3876)
 /** 
  * @brief Pino do Buzzer.
  */
@@ -54,17 +60,22 @@
 /**
  * @brief Tempo limite para alerta de porta aberta (20 minutos em ms).
  */
-#define DOOR_OPEN_ALERT_TIMEOUT_MS  (20 * 60 * 1000)
+#define RACK_DOOR_OPEN_ALERT_TIMEOUT_MS  (20 * 60 * 1000)
 /**
  * @brief Intervalo de verificação do timeout (1 segundo).
  */
-#define DOOR_CHECK_INTERVAL_MS      (1000)
-
-
-
-#define LEDG 13 //verde
-#define LEDB 12 //azul
-#define LEDR 11 //vermelho
+#define RACK_DOOR_CHECK_INTERVAL_MS      (1000)
+/**
+ * @brief Pino do Acionamento do Ventilador
+ */
+#define RACK_VENTILATOR_PIN             (LEDR)
+/**
+ * @brief Pino do servo motor da porta.
+ * 
+ * O servo controla a abertura/fechamento da porta.
+ * Usa o mesmo pino que era usado para a trava.
+ */
+#define RACK_DOOR_SERVO_PIN             RACK_DOOR_LOCK_PIN
 
 /* Parâmetros da task do buzzer PWM */
 #define RACK_BUZZER_TASK_STACK_SIZE     (configMINIMAL_STACK_SIZE * 2)
