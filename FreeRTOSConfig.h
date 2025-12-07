@@ -70,7 +70,7 @@
 #define configMESSAGE_BUFFER_LENGTH_TYPE        size_t
 
 /* Memory allocation related definitions. */
-#define configSUPPORT_STATIC_ALLOCATION         0
+#define configSUPPORT_STATIC_ALLOCATION         1
 #define configSUPPORT_DYNAMIC_ALLOCATION        1
 #define configTOTAL_HEAP_SIZE                   (128*1024)
 #define configAPPLICATION_ALLOCATED_HEAP        0
@@ -79,13 +79,19 @@
 // NOTA: Stack overflow check habilitado para detectar problemas de estouro de pilha
 // Método 2 verifica padrões de canário no final da pilha (mais robusto)
 #define configCHECK_FOR_STACK_OVERFLOW          2
-#define configUSE_MALLOC_FAILED_HOOK            0
+#define configUSE_MALLOC_FAILED_HOOK            1
 #define configUSE_DAEMON_TASK_STARTUP_HOOK      0
 
 /* Run time and task stats gathering related definitions. */
 #define configGENERATE_RUN_TIME_STATS           0
 #define configUSE_TRACE_FACILITY                1
 #define configUSE_STATS_FORMATTING_FUNCTIONS    0
+
+/* 
+ * Habilita registro do endereço alto da pilha para cálculo do tamanho total.
+ * Necessário para análise de watermark com porcentagem de uso.
+ */
+#define configRECORD_STACK_HIGH_ADDRESS         1
 
 /* Co-routine related definitions. */
 #define configUSE_CO_ROUTINES                   0
