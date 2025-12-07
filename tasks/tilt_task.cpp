@@ -23,9 +23,9 @@ static MPU6050 *mpu = nullptr;
 
 void vTiltTask(void *pvParameters){
     LOG_INFO("[Tilt Task] Iniciando...");
-    I2C *i2c = static_cast<I2C*>(pvParameters);
+    I2C *pMpuI2c = static_cast<I2C*>(pvParameters);
 
-    mpu = new MPU6050(i2c);
+    mpu = new MPU6050(pMpuI2c);
     mpu->begin();
     bool lastTilt = false;
     for (;;) {

@@ -19,7 +19,7 @@
 extern EventGroupHandle_t xEventGroup;
 extern environment_t environment;
 
-static I2C *i2c = nullptr;
+static I2C *pAht10I2c = nullptr;
 
 extern "C" {
 
@@ -29,7 +29,7 @@ static inline float read_rack_humidity(void);
 void vTemperatureHumidityTask(void *pvParameters) {
     LOG_INFO("[Temperature & humidity] Iniciando...");
 
-    i2c = static_cast<I2C*>(pvParameters);
+    pAht10I2c = static_cast<I2C*>(pvParameters);
 
     float last_rack_temperature = -1.0f;
     float last_rack_humidity = -1.0f;
@@ -64,7 +64,7 @@ void vTemperatureHumidityTask(void *pvParameters) {
 }
 
 float read_rack_temperature(const char unit) {
-    float tempC = GetTemperature(i2c);
+    float tempC = GetTemperature(pAht10I2c);
 
     if (unit == 'C') {
         return tempC;
@@ -76,7 +76,7 @@ float read_rack_temperature(const char unit) {
 }
 
 float read_rack_humidity(void) {
-    float humidity = GetHumidity(i2c);
+    float humidity = GetHumidity(pAht10I2c);
 
     if (humidity < 0.0f || humidity > 100.0f) {
         return -1.0f;
