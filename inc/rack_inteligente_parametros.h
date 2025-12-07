@@ -165,37 +165,67 @@
 #define DOOR_SERVO_ANGLE_OPEN       179
 
 /* Parâmetros da task do buzzer PWM */
-#define RACK_BUZZER_TASK_STACK_SIZE     (configMINIMAL_STACK_SIZE * 2)
-#define RACK_BUZZER_TASK_PRIORITY       (tskIDLE_PRIORITY + 4)
-#define RACK_BUZZER_TASK_DELAY          (100)
+#define RACK_BUZZER_TASK_STACK_SIZE         (configMINIMAL_STACK_SIZE * 1)
+#define RACK_BUZZER_TASK_PRIORITY           (tskIDLE_PRIORITY + 4)
+#define RACK_BUZZER_TASK_DELAY              (1000)
 
-#define RACK_OLED_TASK_STACK_SIZE           (configMINIMAL_STACK_SIZE * 3)
+#define RACK_OLED_TASK_STACK_SIZE           (configMINIMAL_STACK_SIZE * 2)
 #define RACK_OLED_TASK_PRIORITY             (tskIDLE_PRIORITY + 5)
 
-#define RACK_MQTT_TASK_STACK_SIZE           (configMINIMAL_STACK_SIZE * 3)
+#define RACK_MQTT_TASK_STACK_SIZE           (configMINIMAL_STACK_SIZE * 1)
 #define RACK_MQTT_TASK_PRIORITY             (tskIDLE_PRIORITY + 5)
 
-#define RACK_POLLING_TASK_STACK_SIZE        (configMINIMAL_STACK_SIZE * 2)
-#define RACK_POLLING_TASK_PRIORITY          (tskIDLE_PRIORITY + 5)
-#define RACK_POLLING_TASK_DELAY             (500)
+#define RACK_DOOR_MQTT_TASK_STACK_SIZE           (configMINIMAL_STACK_SIZE * 1)
+#define RACK_DOOR_MQTT_TASK_PRIORITY             (tskIDLE_PRIORITY + 5)
 
-#define RACK_SIGN_ON_TASK_STACK_SIZE        (configMINIMAL_STACK_SIZE * 2)
+#define RACK_POLLING_TASK_STACK_SIZE        (configMINIMAL_STACK_SIZE * 1)
+#define RACK_POLLING_TASK_PRIORITY          (tskIDLE_PRIORITY + 5)
+#define RACK_POLLING_TASK_DELAY             (5000)
+
+#define RACK_GPS_TASK_STACK_SIZE            (configMINIMAL_STACK_SIZE * 2)
+#define RACK_GPS_TASK_PRIORITY              (tskIDLE_PRIORITY + 5)
+#define RACK_GPS_TASK_DELAY                 (5000)
+
+#define RACK_GPS_MQTT_TASK_STACK_SIZE       (configMINIMAL_STACK_SIZE * 2)
+#define RACK_GPS_MQTT_TASK_PRIORITY         (tskIDLE_PRIORITY + 5)
+#define RACK_GPS_MQTT_TASK_DELAY            (1000)
+
+#define RACK_TMP_HUM_TASK_STACK_SIZE        (configMINIMAL_STACK_SIZE * 2)
+#define RACK_TMP_HUM_TASK_PRIORITY          (tskIDLE_PRIORITY + 5)
+#define RACK_TMP_HUM_TASK_DELAY             (1000)
+
+#define RACK_TMP_MQTT_TASK_STACK_SIZE       (configMINIMAL_STACK_SIZE * 2)
+#define RACK_TMP_MQTT_TASK_PRIORITY         (tskIDLE_PRIORITY + 5)
+
+#define RACK_SIGN_ON_TASK_STACK_SIZE        (configMINIMAL_STACK_SIZE * 1)
 #define RACK_SIGN_ON_TASK_PRIORITY          (tskIDLE_PRIORITY + 5)
 #define RACK_SIGN_ON_TASK_DELAY             (1000)
 
-#define RACK_NETWORK_POLL_TASK_STACK_SIZE   (configMINIMAL_STACK_SIZE * 2)
+#define RACK_NETWORK_POLL_TASK_STACK_SIZE   (configMINIMAL_STACK_SIZE * 1)
 // NOTA: Prioridade aumentada para garantir que a stack TCP/IP seja processada regularmente
 // Prioridade 0 (idle) causava perda de conexão Wi-Fi e timeouts MQTT
-#define RACK_NETWORK_POLL_TASK_PRIORITY     (tskIDLE_PRIORITY + 2)
-#define RACK_NETWORK_POLL_TASK_DELAY        (300)
+#define RACK_NETWORK_POLL_TASK_PRIORITY     (tskIDLE_PRIORITY + 3)
+#define RACK_NETWORK_POLL_TASK_DELAY        (5000)
 
-#define RACK_TILT_TASK_STACK_SIZE           (configMINIMAL_STACK_SIZE * 2)
+#define RACK_TILT_TASK_STACK_SIZE           (configMINIMAL_STACK_SIZE * 1)
 #define RACK_TILT_TASK_PRIORITY             (tskIDLE_PRIORITY + 5)
-#define RACK_TILT_TASK_DELAY                (500)
+#define RACK_TILT_TASK_DELAY                (2000)
 
-#define RACK_GPS_TASK_DELAY                 (3000)
+#define RTOS_MONITOR_STACK_SIZE             (configMINIMAL_STACK_SIZE * 3)
+#define RTOS_MONITOR_TASK_PRIORITY          (tskIDLE_PRIORITY + 2)
+/**
+ * @brief Número máximo de tarefas para análise de watermark.
+ * 
+ * Define o tamanho do buffer para armazenar informações das tarefas
+ * durante a análise de stack watermark.
+ */
+#define RTOS_MONITOR_MAX_TASKS              (20)
 
-#define RACK_TMP_HUM_TASK_DELAY             (1000)
+/**
+ * @brief Intervalo de monitoramento em milissegundos.
+ */
+#define RTOS_MONITOR_INTERVAL_MS            (30000)
+
 
 /** @brief Limiar de inclinação para detecção de tilt (em g). */
 #define TILT_THRESHOLD                      (0.015f)
