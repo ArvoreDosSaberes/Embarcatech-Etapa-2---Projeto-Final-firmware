@@ -80,6 +80,15 @@ if(NOT DEFINED ENV{LOG_LEVEL} OR "$ENV{LOG_LEVEL}" STREQUAL "")
     set(ENV{LOG_LEVEL} "1")
 endif()
 
+# Habilita análise de watermark de pilha das tarefas FreeRTOS
+# Defina ENABLE_STACK_WATERMARK=1 no env.cmake para ativar
+if(DEFINED ENV{ENABLE_STACK_WATERMARK} AND "$ENV{ENABLE_STACK_WATERMARK}" STREQUAL "1")
+    set(ENABLE_STACK_WATERMARK 1)
+    message(STATUS "Stack Watermark habilitado para análise de pilha das tarefas")
+else()
+    set(ENABLE_STACK_WATERMARK 0)
+endif()
+
 set(LOG_LEVEL "$ENV{LOG_LEVEL}")
 message(STATUS "LOG_LEVEL: ${LOG_LEVEL}")
 
@@ -130,6 +139,9 @@ pico_sdk_init()
 
 # Disponibiliza LOG_LEVEL como macro de compilação para todos os alvos deste projeto
 add_compile_definitions(LOG_LEVEL=${LOG_LEVEL})
+
+# Disponibiliza ENABLE_STACK_WATERMARK como macro de compilação
+add_compile_definitions(ENABLE_STACK_WATERMARK=${ENABLE_STACK_WATERMARK})
 
 add_subdirectory(tasks)
 add_subdirectory(inc)
