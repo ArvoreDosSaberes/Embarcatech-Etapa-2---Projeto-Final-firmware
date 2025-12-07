@@ -40,6 +40,7 @@
 #include <hardware/timer.h>
 #include <lwip/arch.h>
 #include <pico/time.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/_intsup.h>
@@ -70,6 +71,8 @@
 #include "network_poll_task.h"
 #include "signs_on_task.h"
 
+#include "rtos_monitor.h"
+
 #include "door_state_callback.h"
 
 
@@ -90,6 +93,7 @@
 #include "command_mqtt_task.h"
 #include "buzzer_pwm_task.h"
 #include "door_servo_task.h"
+#include "rtos_monitor.h"
 
 extern "C" {
 
@@ -348,6 +352,10 @@ int main() {
   // Cria tasks FreeRTOS para cada funcionalidade
   LOG_INFO("[FreeRTOS] Criando tasks...");
 
+  xTaskCreate(vRTOSMonitorTask, "rtos_monitor",
+              RTOS_MONITOR_STACK_SIZE,
+              NULL, RTOS_MONITOR_TASK_PRIORITY,
+              NULL);
   xTaskCreate(vNetworkPollTask, "network_poll_task",
               RACK_NETWORK_POLL_TASK_STACK_SIZE,
               NULL, RACK_NETWORK_POLL_TASK_PRIORITY,
@@ -357,13 +365,13 @@ int main() {
               RACK_POLLING_TASK_STACK_SIZE,
               static_cast<void*>(&i2c), RACK_TILT_TASK_PRIORITY,
               NULL);
-  xTaskCreate(vTemperatureHumidityTask, "temp_task",
-               RACK_POLLING_TASK_STACK_SIZE,
-               static_cast<void*>(&i2c), RACK_POLLING_TASK_PRIORITY,
+  xTaskCreate(vTemperatureHumidityTask, "temp_hum_task",
+               RACK_TMP_HUM_TASK_STACK_SIZE,
+               static_cast<void*>(&i2c), RACK_TMP_HUM_TASK_PRIORITY,
                NULL);
   xTaskCreate(vGpsTask, "gps_task",
-               RACK_POLLING_TASK_STACK_SIZE,
-               NULL, RACK_POLLING_TASK_PRIORITY,
+               RACK_GPS_TASK_STACK_SIZE,
+               NULL, RACK_GPS_TASK_PRIORITY,
                NULL);
   xTaskCreate( keyboard_task, "kbd_task", 
                KBD_POLL_TASK_STACK_SIZE, 
@@ -376,20 +384,20 @@ int main() {
                NULL);
 
   xTaskCreate(vDoorStateMqttTask, "door_state_mqtt_task",
-              RACK_MQTT_TASK_STACK_SIZE,
-              NULL, RACK_MQTT_TASK_PRIORITY,
+              RACK_DOOR_MQTT_TASK_STACK_SIZE,
+              NULL, RACK_DOOR_MQTT_TASK_PRIORITY,
               NULL);
   xTaskCreate(vGpsMqttTask, "gps_mqtt_task",
-              RACK_MQTT_TASK_STACK_SIZE,
-              NULL, RACK_MQTT_TASK_PRIORITY,
+              RACK_GPS_MQTT_TASK_STACK_SIZE,
+              NULL, RACK_GPS_MQTT_TASK_PRIORITY,
               NULL);
   xTaskCreate(vTiltMqttTask, "tilt_mqtt_task", 
               RACK_MQTT_TASK_STACK_SIZE,
               NULL, RACK_MQTT_TASK_PRIORITY,
               NULL);
   xTaskCreate(vTemperatureMqttTask, "temp_mqtt_task", 
-              RACK_MQTT_TASK_STACK_SIZE,
-              NULL, RACK_MQTT_TASK_PRIORITY,
+              RACK_TMP_MQTT_TASK_STACK_SIZE,
+              NULL, RACK_TMP_MQTT_TASK_PRIORITY,
               NULL);
   xTaskCreate(vHumidityMqttTask, "humidity_mqtt_task", 
               RACK_MQTT_TASK_STACK_SIZE,
@@ -633,6 +641,11 @@ void dns_check_callback(const char *name, const ip_addr_t *ipaddr,
                         mqtt_connection_callback, NULL, &ci);
   }
 }
+
+/*-----------------------------------------------------------
+ * Callbacks obrigatórios do FreeRTOS (conforme FreeRTOSConfig.h)
+ *----------------------------------------------------------*/
+
 /**
  * @brief Hook chamado pelo FreeRTOS quando detecta stack overflow.
  * 
@@ -654,4 +667,58 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
     }
 }
 
+/**
+ * @brief Callback chamado quando alocação de memória falha.
+ */
+void vApplicationMallocFailedHook(void)
+{
+    LOG_WARN("[FreeRTOS] Memória insuficiente!");
+    /* Parar execução em caso de falha de alocação */
+    taskDISABLE_INTERRUPTS();
+    bool state = false;
+    for (;;)
+    {
+      gpio_put(LEDR, state);
+      state = !state;
+      busy_wait_ms(200);
+    }
+}
+
+/**
+ * @brief Função para prover memória estática para a tarefa Idle.
+ *
+ * @param ppxIdleTaskTCBBuffer Ponteiro para o TCB da tarefa Idle.
+ * @param ppxIdleTaskStackBuffer Ponteiro para a pilha da tarefa Idle.
+ * @param pulIdleTaskStackSize Tamanho da pilha.
+ */
+void vApplicationGetIdleTaskMemory(StaticTask_t** ppxIdleTaskTCBBuffer,
+                                   StackType_t** ppxIdleTaskStackBuffer,
+                                   uint32_t* pulIdleTaskStackSize)
+{
+    static StaticTask_t xIdleTaskTCB;
+    static StackType_t uxIdleTaskStack[configMINIMAL_STACK_SIZE];
+
+    *ppxIdleTaskTCBBuffer = &xIdleTaskTCB;
+    *ppxIdleTaskStackBuffer = uxIdleTaskStack;
+    *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
+}
+
+/**
+ * @brief Função para prover memória estática para a tarefa Timer.
+ *
+ * @param ppxTimerTaskTCBBuffer Ponteiro para o TCB da tarefa Timer.
+ * @param ppxTimerTaskStackBuffer Ponteiro para a pilha da tarefa Timer.
+ * @param pulTimerTaskStackSize Tamanho da pilha.
+ */
+void vApplicationGetTimerTaskMemory(StaticTask_t** ppxTimerTaskTCBBuffer,
+                                    StackType_t** ppxTimerTaskStackBuffer,
+                                    uint32_t* pulTimerTaskStackSize)
+{
+    static StaticTask_t xTimerTaskTCB;
+    static StackType_t uxTimerTaskStack[configTIMER_TASK_STACK_DEPTH];
+
+    *ppxTimerTaskTCBBuffer = &xTimerTaskTCB;
+    *ppxTimerTaskStackBuffer = uxTimerTaskStack;
+    *pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
+}
 }
