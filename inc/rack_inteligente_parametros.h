@@ -184,7 +184,13 @@
 
 #define RACK_GPS_TASK_STACK_SIZE            (configMINIMAL_STACK_SIZE * 2)
 #define RACK_GPS_TASK_PRIORITY              (tskIDLE_PRIORITY + 5)
-#define RACK_GPS_TASK_DELAY                 (5000)
+/**
+ * @brief Intervalo de publicação GPS em milissegundos.
+ * 
+ * Para posição fixa, 30 segundos é adequado para reduzir carga na rede
+ * e evitar esgotamento de pbufs do LwIP.
+ */
+#define RACK_GPS_TASK_DELAY                 (30000)
 
 #define RACK_GPS_MQTT_TASK_STACK_SIZE       (configMINIMAL_STACK_SIZE * 2)
 #define RACK_GPS_MQTT_TASK_PRIORITY         (tskIDLE_PRIORITY + 5)

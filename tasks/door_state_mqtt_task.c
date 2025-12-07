@@ -10,6 +10,7 @@
 #include "lwip/apps/mqtt.h"
 
 #include "log_vt100.h"
+#include "mqtt_utils.h"
 
 
 #include "rack_event_groups.h"
@@ -145,12 +146,12 @@ void publish_door_state(bool gpioState) {
 
     LOG_INFO("[MQTT] Publicando: tópico='%s', mensagem='%s'", topic_door_state, message);
 
-    err_t err = mqtt_publish(mqtt_client, topic_door_state, message, strlen(message), 0, 0, NULL, NULL);
+    err_t err = mqttPublishSafe(mqtt_client, topic_door_state, message, strlen(message), 0, 0);
 
     if (err == ERR_OK) {
-        LOG_INFO("[MQTT] Publicação enviada com sucesso");
+        LOG_INFO("[Door MQTT] Publicação enviada com sucesso");
     } else {
-        LOG_WARN("[MQTT] Erro ao publicar: %d", err);
+        LOG_WARN("[Door MQTT] Erro ao publicar: %d", err);
     }
 }
 

@@ -6,6 +6,7 @@
 #include "projdefs.h"
 #include <stdio.h>
 #include "lwip/apps/mqtt.h"
+#include "mqtt_utils.h"
 
 extern environment_t environment;
 extern mqtt_client_t *mqtt_client;
@@ -45,10 +46,10 @@ void publish_tilt_mqtt(bool tilt){
 
     const char *message = tilt ? "1" : "0";
 
-    err_t err = mqtt_publish(mqtt_client, topic_tilt, message, 1, 0, 0, NULL, NULL);
+    err_t err = mqttPublishSafe(mqtt_client, topic_tilt, message, 1, 0, 0);
     if (err == ERR_OK) {
-        LOG_INFO("[MQTT] Publicação tilt enviada com sucesso");
+        LOG_INFO("[Tilt MQTT] Publicação enviada com sucesso");
     } else {
-        LOG_INFO("[MQTT] Erro ao publicar tilt: %d", err);
+        LOG_WARN("[Tilt MQTT] Erro ao publicar: %d", err);
     }
 }

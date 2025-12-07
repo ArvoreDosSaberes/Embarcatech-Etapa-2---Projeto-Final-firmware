@@ -19,6 +19,7 @@
 #include "hardware/gpio.h"
 
 #include "log_vt100.h"
+#include "mqtt_utils.h"
 
 #include "rack_inteligente_parametros.h"
 #include "rack_inteligente.h"
@@ -141,7 +142,7 @@ bool publishCommandAck(CommandType commandType, int value) {
     
     LOG_INFO("[Command/ACK] Publicando ACK: tópico='%s', valor='%s'", topic, payload);
     
-    err_t err = mqtt_publish(mqtt_client, topic, payload, strlen(payload), 0, 0, NULL, NULL);
+    err_t err = mqttPublishSafe(mqtt_client, topic, payload, strlen(payload), 0, 0);
     
     if (err == ERR_OK) {
         LOG_INFO("[Command/ACK] ACK enviado com sucesso");

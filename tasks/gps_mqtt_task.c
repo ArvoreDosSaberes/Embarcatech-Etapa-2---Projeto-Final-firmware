@@ -6,12 +6,15 @@
 
 #include "rack_event_groups.h"
 #include "rack_inteligente.h"
+#include "mqtt_utils.h"
 #include "task.h"
 
 
 extern char mqtt_rack_topic[50];
 extern EventGroupHandle_t xEventGroup;
 extern environment_t environment;
+extern mqtt_client_t *mqtt_client;
+extern bool mqtt_connected;
 
 static inline void publish_rack_gps_position();
 
@@ -44,6 +47,11 @@ void vGpsMqttTask(void *pvParameters) {
 }
 
 static inline void publish_rack_gps_position() {
+    if (!mqtt_connected) {
+        LOG_WARN("[GPS MQTT] Não conectado, não publicando posição GPS");
+        return;
+    }
+
     char mqttTopicMsg[50];
     snprintf(mqttTopicMsg, sizeof(mqttTopicMsg), "%s/gps", mqtt_rack_topic);
     char gps_position_json[100];
@@ -58,12 +66,17 @@ static inline void publish_rack_gps_position() {
         environment.gps_position.altitude, 
         environment.gps_position.time, 
         environment.gps_position.speed);
-    mqtt_publish(mqtt_client, 
+
+    err_t err = mqttPublishSafe(mqtt_client, 
         mqttTopicMsg, 
         gps_position_json, 
         strlen(gps_position_json), 
-        2,
-        0,
-        NULL,
-        NULL);
+        0,  /* QoS 0 para reduzir overhead */
+        0);
+
+    if (err == ERR_OK) {
+        LOG_INFO("[GPS MQTT] Publicação enviada com sucesso");
+    } else {
+        LOG_WARN("[GPS MQTT] Erro ao publicar: %d", err);
+    }
 }

@@ -94,6 +94,7 @@
 #include "buzzer_pwm_task.h"
 #include "door_servo_task.h"
 #include "rtos_monitor.h"
+#include "mqtt_utils.h"
 
 extern "C" {
 
@@ -320,6 +321,14 @@ int main() {
   LOG_INFO("[MQTT] Conectado ao broker MQTT.");
 //  oled_set_text_line(2, "Conectado MQTT", OLED_ALIGN_CENTER);
 //  oled_render_text();
+
+  // Inicializa módulo de utilidades MQTT (mutex e backpressure)
+  LOG_INFO("[MQTT Utils] Inicializando módulo MQTT Utils...");
+  if (mqttUtilsInit() != pdPASS) {
+    LOG_WARN("[MQTT Utils] Erro ao inicializar módulo MQTT Utils");
+    return -1;
+  }
+
   char mqttDoorTopic[50];
   char mqttAlertTopic[50];
   snprintf(mqttDoorTopic, sizeof(mqttDoorTopic), "%s/%s/door", MQTT_BASE_TOPIC,

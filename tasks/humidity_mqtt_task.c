@@ -8,6 +8,7 @@
 #include "lwip/apps/mqtt.h"
 
 #include "log_vt100.h"
+#include "mqtt_utils.h"
 
 #include "rack_inteligente_parametros.h"
 #include "rack_inteligente.h"
@@ -58,7 +59,7 @@ void publish_rack_humidity(float humidity) {
 
     LOG_INFO("[Humidity MQTT Task] Publicando: tópico='%s', mensagem='%s'", topic_rack_humidity, message);
 
-    err_t err = mqtt_publish(mqtt_client, topic_rack_humidity, message, strlen(message), 0, 0, NULL, NULL);
+    err_t err = mqttPublishSafe(mqtt_client, topic_rack_humidity, message, strlen(message), 0, 0);
 
     if (err == ERR_OK) {
         LOG_INFO("[Humidity MQTT Task] Publicação de umidade enviada com sucesso");

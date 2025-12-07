@@ -148,10 +148,13 @@ add_subdirectory(inc)
 add_subdirectory(lib)
 
 # Add executable. Default name is the project name, version 0.1
-add_executable(rack_inteligente rack_inteligente.cpp) 
+add_executable(rack_inteligente 
+        rack_inteligente.cpp
+        mqtt_utils.c
+) 
 
 pico_set_program_name(rack_inteligente "rack_inteligente")
-pico_set_program_version(rack_inteligente "0.1")
+pico_set_program_version(rack_inteligente "0.5")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(rack_inteligente 0)
