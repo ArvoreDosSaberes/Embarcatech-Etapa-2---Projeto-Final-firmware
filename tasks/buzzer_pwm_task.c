@@ -101,7 +101,20 @@ static const BuzzerPattern patternOverheat = {
  * Variáveis do módulo
  * ============================================================================ */
 
-/** @brief Estado atual do buzzer */
+/**
+ * @brief Estado atual do buzzer.
+ * 
+ * Esta variável é declarada como 'volatile' porque:
+ * 1. É acessada por múltiplas tasks/contextos de execução (IRQ e task do buzzer)
+ * 2. Pode ser modificada por buzzerPwmSetState() em uma task e lida por buzzerPwmTask() em outra
+ * 3. O modificador 'volatile' impede que o compilador otimize acessos à variável,
+ *    garantindo que cada leitura busque o valor atual da memória
+ * 4. Sem 'volatile', o compilador poderia cachear o valor em um registrador,
+ *    fazendo com que mudanças de estado não fossem percebidas pela task do buzzer
+ * 
+ * Nota: 'volatile' garante visibilidade mas não atomicidade - por isso também
+ * uso o mutex 'stateMutex' para sincronização thread-safe completa.
+ */
 static volatile BuzzerPwmState currentState = BUZZER_STATE_OFF;
 
 /** @brief Handle da task do buzzer */
