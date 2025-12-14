@@ -20,6 +20,8 @@
 #ifndef COMMAND_MQTT_TASK_H
 #define COMMAND_MQTT_TASK_H
 
+#include "FreeRTOS.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -89,6 +91,17 @@ void processCommandVentilation(int value);
 void processCommandBuzzer(int value);
 
 /**
+ * @brief Enfileira comando de buzzer a partir de contexto de interrupção (ISR).
+ *
+ * Esta função deve ser usada quando o comando é disparado por IRQ de GPIO.
+ * Não executa o comando diretamente; apenas enfileira usando API FromISR.
+ *
+ * @param value Estado do buzzer (0-3)
+ * @param xHigherPriorityTaskWoken Ponteiro para flag de preempção do FreeRTOS
+ */
+void processCommandBuzzerFromIsr(int value, BaseType_t *xHigherPriorityTaskWoken);
+
+/**
  * @brief Publica confirmação (ACK) de comando via MQTT.
  *
  * @param commandType Tipo do comando confirmado
@@ -125,6 +138,14 @@ BuzzerState getBuzzerState(void);
  * Deve ser chamada após commandMqttInit() e após o scheduler iniciar.
  */
 void commandMqttStartTask(void);
+
+/**
+ * @brief Task de processamento de comandos.
+ * 
+ * Esta task roda em contexto próprio, permitindo o uso de vTaskDelay
+ * para movimentos suaves do servo motor.
+ */
+void commandProcessingTask(void *pvParameters);
 
 #ifdef __cplusplus
 }

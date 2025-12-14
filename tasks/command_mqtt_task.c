@@ -31,16 +31,16 @@
 extern bool mqtt_connected;
 extern mqtt_client_t *mqtt_client;
 extern char mqtt_rack_topic[50];
+/* Fila de comandos - permite desacoplar callback MQTT do processamento */
+extern  QueueHandle_t commandQueue;
+
+/* Handle da task de processamento de comandos */
+extern TaskHandle_t commandTaskHandle;
+
 
 /* Estados internos dos atuadores */
 static bool ventilationState = false;    /* false = desligada, true = ligada */
 static BuzzerState buzzerState = BUZZER_OFF;
-
-/* Fila de comandos - permite desacoplar callback MQTT do processamento */
-static QueueHandle_t commandQueue = NULL;
-
-/* Handle da task de processamento de comandos */
-static TaskHandle_t commandTaskHandle = NULL;
 
 /** @brief Tamanho da fila de comandos */
 #define COMMAND_QUEUE_SIZE      8
@@ -58,6 +58,8 @@ static TaskHandle_t commandTaskHandle = NULL;
 #ifndef RACK_BUZZER_PIN
 #define RACK_BUZZER_PIN 15       /* Pino padrão para buzzer (usa RACK_ALARM_PIN) */
 #endif
+
+bool commandMqttInitialized = false;
 
 /**
  * @brief Inicializa os pinos GPIO dos atuadores.
@@ -83,6 +85,14 @@ static void initActuatorPins(void) {
  * Inicializa os GPIOs dos atuadores, módulos de buzzer/servo e cria a fila.
  */
 bool commandMqttInit(void) {
+    if(commandMqttInitialized) {
+        LOG_WARN("[Command] Módulo de comandos já inicializado");
+        return false;
+    }
+    
+    commandMqttInitialized = true;
+    
+    LOG_INFO("[Command] Inicializando módulo de comandos");
     initActuatorPins();
     
     /* Cria fila de comandos */
@@ -242,7 +252,7 @@ static void executeCommandBuzzer(int value) {
  * Esta task roda em contexto próprio, permitindo o uso de vTaskDelay
  * para movimentos suaves do servo motor.
  */
-static void commandProcessingTask(void *pvParameters) {
+void commandProcessingTask(void *pvParameters) {
     (void)pvParameters;
     CommandQueueItem cmd;
     
@@ -250,7 +260,7 @@ static void commandProcessingTask(void *pvParameters) {
     
     for (;;) {
         /* Aguarda comando na fila (bloqueia até receber) */
-        if (xQueueReceive(commandQueue, &cmd, portMAX_DELAY) == pdTRUE) {
+        if (xQueueReceive(commandQueue, &cmd, pdMS_TO_TICKS(60000)) == pdTRUE) {
             LOG_DEBUG("[Command] Processando comando tipo=%d valor=%d", cmd.type, cmd.value);
             
             switch (cmd.type) {
@@ -267,37 +277,12 @@ static void commandProcessingTask(void *pvParameters) {
                     LOG_WARN("[Command] Tipo de comando desconhecido: %d", cmd.type);
                     break;
             }
+        } else {
+            if (mqtt_connected) {
+                publishCommandAck(COMMAND_TYPE_VENTILATION, getVentilationState() ? 1 : 0);
+                publishCommandAck(COMMAND_TYPE_DOOR, getDoorState() ? 1 : 0);
+            }
         }
-    }
-}
-
-/**
- * @brief Inicia a task de processamento de comandos.
- */
-void commandMqttStartTask(void) {
-    if (commandQueue == NULL) {
-        LOG_WARN("[Command] Fila não inicializada, chame commandMqttInit primeiro");
-        return;
-    }
-    
-    if (commandTaskHandle != NULL) {
-        LOG_WARN("[Command] Task já está em execução");
-        return;
-    }
-    
-    BaseType_t ret = xTaskCreate(
-        commandProcessingTask,
-        "CommandTask",
-        COMMAND_TASK_STACK_SIZE,
-        NULL,
-        COMMAND_TASK_PRIORITY,
-        &commandTaskHandle
-    );
-    
-    if (ret == pdPASS) {
-        LOG_INFO("[Command] Task de comandos criada com sucesso");
-    } else {
-        LOG_WARN("[Command] Falha ao criar task de comandos");
     }
 }
 
@@ -378,6 +363,26 @@ void processCommandBuzzer(int value) {
         LOG_WARN("[Command/Buzzer] Fila cheia, comando descartado");
     }
 }
+
+ /**
+  * @brief Enfileira comando de buzzer a partir de contexto de interrupção (ISR).
+  */
+ void processCommandBuzzerFromIsr(int value, BaseType_t *xHigherPriorityTaskWoken) {
+     if (value < 0 || value > 3) {
+         return;
+     }
+ 
+     if (commandQueue == NULL) {
+         return;
+     }
+ 
+     CommandQueueItem cmd = {
+         .type = COMMAND_TYPE_BUZZER,
+         .value = value
+     };
+ 
+     (void)xQueueSendFromISR(commandQueue, &cmd, xHigherPriorityTaskWoken);
+ }
 
 /**
  * @brief Retorna o estado atual da porta.

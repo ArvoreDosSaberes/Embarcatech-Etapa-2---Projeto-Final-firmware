@@ -70,19 +70,10 @@
 #include "menu_oled_task.h"
 #include "network_poll_task.h"
 #include "signs_on_task.h"
-
+#include "command_mqtt_task.h"
 #include "rtos_monitor.h"
 
-#include "door_state_callback.h"
-
-
-/*
-#include "tilt_oled_task.h"
-#include "humidity_oled_task.h"
-#include "temperature_oled_task.h"
-#include "door_state_oled_task.h"
-#include "gps_oled_task.h"
-*/
+#include "gpio_state_callback.h"
 
 #include "door_state_mqtt_task.h"
 #include "tilt_mqtt_task.h"
@@ -98,6 +89,16 @@
 
 extern "C" {
 
+static repeating_timer_t bootBlinkTimer;
+static bool bootBlinkLedState = false;
+
+static bool bootBlinkTimerCallback(repeating_timer_t *rt) {
+  (void)rt;
+  gpio_put(LEDB, bootBlinkLedState);
+  bootBlinkLedState = !bootBlinkLedState;
+  return true;
+}
+
 /**
  * @defgroup GlobalVars Variáveis Globais
  * @brief Variáveis compartilhadas entre módulos do firmware.
@@ -112,6 +113,21 @@ environment_t environment;
 
 /** @brief Flag indicando se cliente MQTT está conectado ao broker. */
 bool mqtt_connected = false;
+
+/** @brief Flag indicando que reconexão MQTT foi solicitada. */
+bool mqtt_reconnect_requested = false;
+
+/* Fila de comandos - permite desacoplar callback MQTT do processamento */
+QueueHandle_t commandQueue;
+
+/* Handle da task de processamento de comandos */
+TaskHandle_t commandTaskHandle;
+
+/** @brief Contador de tentativas de reconexão MQTT. */
+static uint8_t mqtt_reconnect_attempts = 0;
+
+/** @brief Timestamp da última tentativa de reconexão. */
+static TickType_t mqtt_last_reconnect_tick = 0;
 
 /** @brief Ponteiro para o cliente MQTT lwIP. */
 mqtt_client_t *mqtt_client;
@@ -183,6 +199,11 @@ static inline void turnOffAlarm();
 int main() {
   stdio_init_all();
   log_set_level(LOG_LEVEL_INFO);
+
+  gpio_init(LEDB);
+  gpio_set_dir(LEDB, GPIO_OUT);
+
+  add_repeating_timer_ms(50, bootBlinkTimerCallback, NULL, &bootBlinkTimer);
 
   LOG_INFO("#################################");
   LOG_INFO("# Rack Inteligente              #");
@@ -258,7 +279,13 @@ int main() {
       RACK_DOOR_STATE_PIN,
       GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL,
       true,
-      doorStateChangeCallBack);
+      gpioStateChangeCallBack);
+
+  LOG_INFO("[GPIO] Configurando GPIO do botão B...");
+  gpio_init(RACK_BUTTON_B_PIN);
+  gpio_set_dir(RACK_BUTTON_B_PIN, GPIO_IN);
+  gpio_pull_up(RACK_BUTTON_B_PIN);
+  gpio_set_irq_enabled(RACK_BUTTON_B_PIN, GPIO_IRQ_EDGE_FALL, true);
 
   LOG_INFO("[MQTT] Configurando tópico MQTT...");
 //  oled_set_text_line(2, "Configurando MQTT", OLED_ALIGN_CENTER);
@@ -370,8 +397,12 @@ int main() {
               NULL, RACK_NETWORK_POLL_TASK_PRIORITY,
               NULL);
   
+  xTaskCreate(commandProcessingTask, "CommandTask", COMMAND_TASK_STACK_SIZE,
+              NULL, COMMAND_TASK_PRIORITY,
+              &commandTaskHandle);
+    
   xTaskCreate(vTiltTask, "tilt_task",
-              RACK_POLLING_TASK_STACK_SIZE,
+              RACK_TILT_TASK_STACK_SIZE,
               static_cast<void*>(&i2c), RACK_TILT_TASK_PRIORITY,
               NULL);
   xTaskCreate(vTemperatureHumidityTask, "temp_hum_task",
@@ -422,6 +453,8 @@ int main() {
   LOG_INFO("[FreeRTOS] Iniciando scheduler...");
 //  oled_set_text_line(2, "Iniciando scheduler", OLED_ALIGN_CENTER);
 //  oled_render_text();
+  cancel_repeating_timer(&bootBlinkTimer);
+  gpio_put(LEDB, false);
   vTaskStartScheduler();
 
   // Se chegar aqui, houve falha ao iniciar o scheduler
@@ -612,17 +645,90 @@ static void mqtt_connection_callback(mqtt_client_t *client, void *arg,
   if (mqtt_connected) {
     LOG_INFO("[MQTT] Conectado ao broker com sucesso!");
     
-    // Inicializa módulo de comandos (cria fila e inicializa hardware)
-    commandMqttInit();
+    // Reset contadores de reconexão
+    mqtt_reconnect_attempts = 0;
+    mqtt_reconnect_requested = false;
     
-    // Inicia task de processamento de comandos (processa fila de forma assíncrona)
-    commandMqttStartTask();
+    commandMqttInit();
     
     // Subscreve aos tópicos de comando
     subscribeToCommandTopics(client);
   } else {
-    LOG_WARN("[MQTT] Falha na conexão ao broker: status=%d", status);
+    LOG_WARN("[MQTT] Conexão perdida ou falha (status=%d). Solicitando reconexão...", status);
+    mqtt_reconnect_requested = true;
   }
+}
+
+/**
+ * @brief Tenta reconectar ao broker MQTT.
+ * 
+ * Esta função é chamada pela task de network poll quando detecta
+ * que a conexão foi perdida. Implementa backoff exponencial para
+ * evitar sobrecarga do broker.
+ * 
+ * @return true se a tentativa de reconexão foi iniciada
+ * @return false se ainda está em período de espera (backoff)
+ */
+bool mqttTryReconnect(void) {
+  if (!mqtt_reconnect_requested) {
+    return false;
+  }
+  
+  // Backoff exponencial: 2^attempts segundos (max 60s)
+  uint32_t backoffMs = (1 << mqtt_reconnect_attempts) * 1000;
+  if (backoffMs > 60000) {
+    backoffMs = 60000;
+  }
+  
+  TickType_t currentTick = xTaskGetTickCount();
+  TickType_t elapsedMs = (currentTick - mqtt_last_reconnect_tick) * portTICK_PERIOD_MS;
+  
+  if (elapsedMs < backoffMs) {
+    return false; // Ainda em período de espera
+  }
+  
+  mqtt_last_reconnect_tick = currentTick;
+  mqtt_reconnect_attempts++;
+  
+  LOG_INFO("[MQTT] Tentativa de reconexão #%d...", mqtt_reconnect_attempts);
+  
+  // Verifica se o cliente ainda existe
+  if (mqtt_client == NULL) {
+    LOG_WARN("[MQTT] Cliente MQTT nulo, recriando...");
+    mqtt_client = mqtt_client_new();
+    if (mqtt_client == NULL) {
+      LOG_WARN("[MQTT] Falha ao recriar cliente MQTT");
+      return false;
+    }
+  }
+  
+  // Desconecta cliente anterior se ainda conectado
+  if (mqtt_client_is_connected(mqtt_client)) {
+    mqtt_disconnect(mqtt_client);
+  }
+  
+  // Configura e reconecta
+  struct mqtt_connect_client_info_t ci = {
+    MQTT_CLIENT_ID,
+    MQTT_USERNAME,
+    MQTT_PASSWORD,
+    60,
+    NULL,
+    NULL,
+    2,
+    false
+  };
+  
+  err_t err = mqtt_client_connect(mqtt_client, &broker_ip, MQTT_PORT,
+                                   mqtt_connection_callback, NULL, &ci);
+  
+  if (err != ERR_OK) {
+    LOG_WARN("[MQTT] Erro ao iniciar reconexão: %d", err);
+    return false;
+  }
+  
+  LOG_INFO("[MQTT] Reconexão iniciada, aguardando callback...");
+  return true;
 }
 
 // Callback de DNS
