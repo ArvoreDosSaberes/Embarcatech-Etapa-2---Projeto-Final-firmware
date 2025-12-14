@@ -127,18 +127,22 @@
 #define RACK_LONGITUDE (-38.3876)
 
 /** @} */ // fim GPSDefault
-/** 
- * @brief Pino do Buzzer.
- */
-#define RACK_ALARM_PIN      10
-/**
- * @brief Pino que indica o estado da porta (entrada).
- */
-#define RACK_DOOR_STATE_PIN 5
-/**
- * @brief Pino do travamento da porta (saída).
- */
-#define RACK_DOOR_LOCK_PIN  2
+ /** 
+  * @brief Pino do Buzzer.
+  */
+ #define RACK_ALARM_PIN      10
+ /**
+  * @brief Pino que indica o estado da porta (entrada).
+  */
+ #define RACK_DOOR_STATE_PIN 5
+ /**
+  * @brief Pino do botão B (entrada).
+  */
+ #define RACK_BUTTON_B_PIN   6
+ /**
+  * @brief Pino do travamento da porta (saída).
+  */
+ #define RACK_DOOR_LOCK_PIN  2
 /**
  * @brief Tempo limite para alerta de porta aberta (20 minutos em ms).
  */
@@ -213,7 +217,7 @@
 #define RACK_NETWORK_POLL_TASK_PRIORITY     (tskIDLE_PRIORITY + 3)
 #define RACK_NETWORK_POLL_TASK_DELAY        (5000)
 
-#define RACK_TILT_TASK_STACK_SIZE           (configMINIMAL_STACK_SIZE * 1)
+#define RACK_TILT_TASK_STACK_SIZE           (configMINIMAL_STACK_SIZE * 2)
 #define RACK_TILT_TASK_PRIORITY             (tskIDLE_PRIORITY + 5)
 #define RACK_TILT_TASK_DELAY                (2000)
 
@@ -231,6 +235,15 @@
  * @brief Intervalo de monitoramento em milissegundos.
  */
 #define RTOS_MONITOR_INTERVAL_MS            (30000)
+
+/** @brief Tamanho da fila de comandos */
+#define COMMAND_QUEUE_SIZE      8
+
+/** @brief Stack size da task de comandos */
+#define COMMAND_TASK_STACK_SIZE (configMINIMAL_STACK_SIZE * 3)
+
+/** @brief Prioridade da task de comandos */
+#define COMMAND_TASK_PRIORITY   (tskIDLE_PRIORITY + 4)
 
 
 /** @brief Limiar de inclinação para detecção de tilt (em g). */
