@@ -54,13 +54,15 @@ static inline void publish_rack_gps_position() {
 
     char mqttTopicMsg[50];
     snprintf(mqttTopicMsg, sizeof(mqttTopicMsg), "%s/gps", mqtt_rack_topic);
-    char gps_position_json[100];
-    snprintf(gps_position_json, sizeof(gps_position_json), "{"\
-        "\"latitude\": %f, "\
-        "\"longitude\": %f, "\
-        "\"altitude\": %f, "\
-        "\"time\": %d, "\
-        "\"speed\": %f }",\
+    char gps_position_json[150];
+    snprintf(gps_position_json, sizeof(gps_position_json), 
+        "{"\
+            "\"latitude\": %f, "\
+            "\"longitude\": %f, "\
+            "\"altitude\": %f, "\
+            "\"time\": %d, "\
+            "\"speed\": %f "\
+        " }",\
         environment.gps_position.latitude, 
         environment.gps_position.longitude, 
         environment.gps_position.altitude, 
