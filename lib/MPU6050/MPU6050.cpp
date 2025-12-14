@@ -10,6 +10,7 @@
 #include "log_vt100.h"
 #include "pico/stdlib.h" // sleep_ms
 #include <cstdint>
+#include <hardware/timer.h>
 
 #if defined(I2C_USE_FREERTOS)
 #include "FreeRTOS.h"
@@ -39,13 +40,13 @@ void MPU6050::begin() {
   LOG_INFO("[MPU6050.begin] ID lido: 0x%02X", this->id);
   LOG_INFO("[MPU6050.begin] Aplicando configurações...");
   write8(CONFIG, 0x00);
-  sleep_ms(100);
+  busy_wait_ms(100);
   write8(ACCEL_CONFIG, 0x00);
   write8(GYRO_CONFIG, 0x08);
   write8(SMPLRT_DIV, 0x00);
   write8(PWR_MGMT_1, 0x01);
   write8(PWR_MGMT_2, 0x00);
-  sleep_ms(20);
+  busy_wait_ms(20);
   LOG_INFO("[MPU6050.begin] Configurações aplicadas");
 
 }
@@ -65,13 +66,13 @@ void MPU6050::reset(void) {
   write8(PWR_MGMT_1, val);
   while (val & 0x80) {
     val = read8(PWR_MGMT_1);
-    sleep_ms(1);
+    busy_wait_ms(1);
   }
   val = read8(SIG_PATH_RESET) | 0x07;
   write8(SIG_PATH_RESET, val);
   while (val & 0x07) {
     val = read8(SIG_PATH_RESET);
-    sleep_ms(1);
+    busy_wait_ms(1);
   }
 
   LOG_INFO("[MPU6050.reset] Reset completo");
