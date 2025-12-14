@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-void doorStateChangeCallBack(unsigned int gpio, uint32_t events);
+void gpioStateChangeCallBack(unsigned int gpio, uint32_t events);
 
 #ifdef __cplusplus
 }
