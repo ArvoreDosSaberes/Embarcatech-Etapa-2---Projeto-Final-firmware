@@ -34,13 +34,10 @@ void vTemperatureMqttTask(void *pvParameters) {
             xTemperatureBitsToWaitFor,     // O(s) bit(s) a esperar.
             pdTRUE,             // Limpar o(s) bit(s) ao sair.
             pdFALSE,            // Não precisa de todos os bits (só tem 1).
-            portMAX_DELAY );    // Espera indefinidamente.
+            pdMS_TO_TICKS(60000) ); // Espera 60 segundos, assim mantem uma comunicação regular com o broker
 
-        LOG_DEBUG("[Temperature MQTT Task] Evento recebido: %d", uxBits);
-        if ((uxBits & xTemperatureBitsToWaitFor) == xTemperatureBitsToWaitFor) {
-            LOG_INFO("[TEMPERATURE MQTT TASK] Temperatura mudou para: %.2f", environment.temperature);
-            publish_rack_temperature(environment.temperature);
-        }
+        LOG_INFO("[TEMPERATURE MQTT TASK] Temperatura mudou para: %.2f", environment.temperature);
+        publish_rack_temperature(environment.temperature);
     }
 }
 

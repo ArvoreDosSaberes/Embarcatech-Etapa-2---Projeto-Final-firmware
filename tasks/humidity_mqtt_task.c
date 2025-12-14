@@ -35,12 +35,9 @@ void vHumidityMqttTask(void *pvParameters) {
             xHumidityBitsToWaitFor,     // O(s) bit(s) a esperar.
             pdTRUE,             // Limpar o(s) bit(s) ao sair.
             pdFALSE,            // Não precisa de todos os bits (só tem 1).
-            portMAX_DELAY );    // Espera indefinidamente.
+            pdMS_TO_TICKS(60000) ); // Espera 60 segundos, assim mantem uma comunicação regular com o broker
         LOG_INFO("[Humidity MQTT Task] Evento recebido: %d", uxBits);
-        if ((uxBits & xHumidityBitsToWaitFor) == xHumidityBitsToWaitFor) {
-            LOG_INFO("[Humidity MQTT Task] Umidade mudou para: %.2f", environment.humidity);
-            publish_rack_humidity(environment.humidity);
-        }
+        publish_rack_humidity(environment.humidity);
     }
 }
 
