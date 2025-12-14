@@ -52,12 +52,10 @@ void vDoorStateMqttTask(void *pvParameters) {
             xDoorStateBitsToWaitFor,
             pdTRUE,
             pdFALSE,
-            pdMS_TO_TICKS(RACK_DOOR_CHECK_INTERVAL_MS));
+            pdMS_TO_TICKS(60000)); // Espera 60 segundos, assim mantem uma comunicação regular com o broker
         
-        if ((uxBits & xDoorStateBitsToWaitFor) == xDoorStateBitsToWaitFor) {
-            LOG_DEBUG("[Door State MQTT Task] Evento recebido: %d", uxBits);
-            publish_door_state(environment.door);
-        }
+        LOG_DEBUG("[Door State MQTT Task] Evento recebido: %d", uxBits);
+        publish_door_state(environment.door);
         
         /* Verifica timeout de porta aberta */
         check_door_open_timeout();
