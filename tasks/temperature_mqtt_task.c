@@ -15,6 +15,10 @@
 
 #include "rack_event_groups.h"
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#include "wcet_probe.h"
+#endif
+
 extern EventGroupHandle_t xEventGroup;
 extern mqtt_client_t *mqtt_client;
 extern char mqtt_rack_topic[50];
@@ -36,8 +40,21 @@ void vTemperatureMqttTask(void *pvParameters) {
             pdFALSE,            // Não precisa de todos os bits (só tem 1).
             pdMS_TO_TICKS(60000) ); // Espera 60 segundos, assim mantem uma comunicação regular com o broker
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        const uint64_t activeStartUs = wcetProbeNowUs();
+#endif
+
         LOG_INFO("[TEMPERATURE MQTT TASK] Temperatura mudou para: %.2f", environment.temperature);
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        const uint64_t publishStartUs = wcetProbeNowUs();
+#endif
         publish_rack_temperature(environment.temperature);
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        wcetProbeRecord("temperature_mqtt.publish", publishStartUs, wcetProbeNowUs());
+        wcetProbeRecord("temperature_mqtt.loop_active", activeStartUs, wcetProbeNowUs());
+#endif
     }
 }
 

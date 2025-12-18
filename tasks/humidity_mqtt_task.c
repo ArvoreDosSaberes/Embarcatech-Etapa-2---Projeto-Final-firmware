@@ -16,6 +16,10 @@
 #include "rack_event_groups.h"
 #include "humidity_mqtt_task.h"
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#include "wcet_probe.h"
+#endif
+
 extern environment_t environment;
 extern mqtt_client_t *mqtt_client;
 extern char mqtt_rack_topic[50];
@@ -36,8 +40,20 @@ void vHumidityMqttTask(void *pvParameters) {
             pdTRUE,             // Limpar o(s) bit(s) ao sair.
             pdFALSE,            // Não precisa de todos os bits (só tem 1).
             pdMS_TO_TICKS(60000) ); // Espera 60 segundos, assim mantem uma comunicação regular com o broker
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        const uint64_t activeStartUs = wcetProbeNowUs();
+#endif
         LOG_INFO("[Humidity MQTT Task] Evento recebido: %d", uxBits);
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        const uint64_t publishStartUs = wcetProbeNowUs();
+#endif
         publish_rack_humidity(environment.humidity);
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        wcetProbeRecord("humidity_mqtt.publish", publishStartUs, wcetProbeNowUs());
+        wcetProbeRecord("humidity_mqtt.loop_active", activeStartUs, wcetProbeNowUs());
+#endif
     }
 }
 

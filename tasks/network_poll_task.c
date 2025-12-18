@@ -10,7 +10,12 @@
 
 #include "rack_inteligente_parametros.h"
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#include "wcet_probe.h"
+#endif
+
 #include "network_poll_task.h"
+#include "watchdog_task.h"
 
 /* Variáveis externas para reconexão MQTT */
 extern bool mqtt_connected;
@@ -36,8 +41,13 @@ void vNetworkPollTask(void *pvParameters) {
     uint32_t poll_count = 0;
 
     for (;;) {
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        const uint64_t loopStartUs = wcetProbeNowUs();
+#endif
         printf(".");
         cyw43_arch_poll();
+
+        watchdogKick((uint32_t)WatchdogSourceNetworkPoll);
 
         /* Pisca LED para indicar atividade */
         led_on = !led_on;
@@ -49,10 +59,20 @@ void vNetworkPollTask(void *pvParameters) {
             poll_count = 0;
             
             if (!mqtt_connected && mqtt_reconnect_requested) {
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+                const uint64_t reconnectStartUs = wcetProbeNowUs();
+#endif
                 LOG_DEBUG("[Network Poll] MQTT desconectado, tentando reconectar...");
                 mqttTryReconnect();
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+                wcetProbeRecord("network_poll.mqtt_reconnect", reconnectStartUs, wcetProbeNowUs());
+#endif
             }
         }
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        wcetProbeRecord("network_poll.loop_active", loopStartUs, wcetProbeNowUs());
+#endif
 
         vTaskDelay(pdMS_TO_TICKS(RACK_NETWORK_POLL_TASK_DELAY));
     }

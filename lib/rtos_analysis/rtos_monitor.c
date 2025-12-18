@@ -1,9 +1,47 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "stdio.h"
+#include "string.h"
 #include "rtos_monitor.h"
 #include "log_vt100.h"
 #include "rack_inteligente_parametros.h"
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#include "hardware/clocks.h"
+#include "hardware/structs/scb.h"
+#endif
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#include "rtos_trace.h"
+#include "wcet_probe.h"
+#endif
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+static void vPrintRuntimeStats(void)
+{
+#if ( configGENERATE_RUN_TIME_STATS == 1 ) && ( configUSE_STATS_FORMATTING_FUNCTIONS == 1 )
+    static char statsBuffer[1024];
+
+    memset(statsBuffer, 0, sizeof(statsBuffer));
+    vTaskGetRunTimeStats(statsBuffer);
+
+    LOG_INFO("==================== Run Time Stats (CPU) ====================");
+
+    char *saveptr = NULL;
+    char *line = strtok_r(statsBuffer, "\r\n", &saveptr);
+    while (line != NULL)
+    {
+        if (line[0] != '\0')
+        {
+            LOG_INFO("%s", line);
+        }
+        line = strtok_r(NULL, "\r\n", &saveptr);
+    }
+
+    LOG_INFO("==================== End Run Time Stats ====================");
+#endif
+}
+#endif
 
 
 #if ENABLE_STACK_WATERMARK
@@ -124,6 +162,15 @@ static void vPrintStackWatermarks(void)
                  (unsigned int)(stackUsed * sizeof(StackType_t)),
                  (unsigned int)usagePercent,
                  status);
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        LOG_INFO("[MonitorKV] task=%s stack_total=%u stack_free=%u stack_used=%u stack_usage_pct=%u",
+                 pxTask->pcTaskName,
+                 (unsigned int)(stackTotal * sizeof(StackType_t)),
+                 (unsigned int)(watermark * sizeof(StackType_t)),
+                 (unsigned int)(stackUsed * sizeof(StackType_t)),
+                 (unsigned int)usagePercent);
+#endif
     }
 
     /* Imprime totalizadores */
@@ -169,6 +216,10 @@ void vRTOSMonitorTask(void *pvParameters)
 {
     (void)pvParameters;
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+    rtosTraceInit();
+#endif
+
     for (;;)
     {
         /* Monitorar heap livre */
@@ -178,6 +229,52 @@ void vRTOSMonitorTask(void *pvParameters)
         /* Log periódico de status */
         LOG_INFO("[Monitor] Heap livre: %u bytes, Minimo: %u bytes",
                  (unsigned int)freeHeap, (unsigned int)minFreeHeap);
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        LOG_INFO("[MonitorKV] heap_free=%u heap_min=%u",
+                 (unsigned int)freeHeap, (unsigned int)minFreeHeap);
+
+        {
+            const uint32_t clkRefHz = (uint32_t)clock_get_hz(clk_ref);
+            const uint32_t clkSysHz = (uint32_t)clock_get_hz(clk_sys);
+            const uint32_t clkPeriHz = (uint32_t)clock_get_hz(clk_peri);
+            const uint32_t clkUsbHz = (uint32_t)clock_get_hz(clk_usb);
+            const uint32_t clkAdcHz = (uint32_t)clock_get_hz(clk_adc);
+            const uint32_t clkRtcHz = (uint32_t)clock_get_hz(clk_rtc);
+            const uint32_t scbIcsr = scb_hw->icsr;
+            LOG_INFO(
+                "[HwKV] clk_ref_hz=%u clk_sys_hz=%u clk_peri_hz=%u clk_usb_hz=%u clk_adc_hz=%u clk_rtc_hz=%u scb_icsr=0x%08X "
+                "rtos_tick_hz=%u rtos_preempt=%u rtos_tickless=%u rtos_max_prio=%u",
+                (unsigned int)clkRefHz,
+                (unsigned int)clkSysHz,
+                (unsigned int)clkPeriHz,
+                (unsigned int)clkUsbHz,
+                (unsigned int)clkAdcHz,
+                (unsigned int)clkRtcHz,
+                (unsigned int)scbIcsr,
+                (unsigned int)configTICK_RATE_HZ,
+                (unsigned int)configUSE_PREEMPTION,
+                (unsigned int)configUSE_TICKLESS_IDLE,
+                (unsigned int)configMAX_PRIORITIES);
+        }
+        vPrintRuntimeStats();
+
+        {
+            char traceLine[160];
+            while (rtosTracePopLogLine(traceLine, sizeof(traceLine)) != 0)
+            {
+                LOG_INFO("%s", traceLine);
+            }
+        }
+
+        {
+            char wcetLine[180];
+            while (wcetProbePopLogLine(wcetLine, sizeof(wcetLine)) != 0)
+            {
+                LOG_INFO("%s", wcetLine);
+            }
+        }
+#endif
 
 #if ENABLE_STACK_WATERMARK
         /* Imprime watermark de pilha das tarefas */

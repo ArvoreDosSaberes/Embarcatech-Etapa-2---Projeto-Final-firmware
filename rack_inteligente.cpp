@@ -28,14 +28,17 @@
  * @version 1.0.0
  * @date 2025
  * 
- * @copyright Copyright (c) 2025 EmbarcaTech
+ * @copyright Copyright (c) 2025 Carlos Delfino Carvalho
  */
 #include "hardware/adc.h"
 #include "hardware/gpio.h"
 #include "hardware/irq.h"
+#include "hardware/watchdog.h"
 #include "lwip/apps/mqtt.h"
 #include "lwip/dns.h"
 #include "lwip/ip_addr.h"
+#include "lwip/netif.h"
+#include "lwip/ip4_addr.h"
 #include "pico/cyw43_arch.h"
 #include <hardware/timer.h>
 #include <lwip/arch.h>
@@ -59,6 +62,7 @@
 #include "menu_event_group.h"
 
 #include "rack_inteligente.h"
+#include "rack_inteligente_network_parametros.h"
 #include "rack_inteligente_parametros.h"
 #include "keyboard_menu_parameters.h"
 
@@ -75,6 +79,7 @@
 
 #include "gpio_state_callback.h"
 
+#include "oled_status_task.h"
 #include "door_state_mqtt_task.h"
 #include "tilt_mqtt_task.h"
 #include "temperature_humidity_task.hpp"
@@ -86,6 +91,8 @@
 #include "door_servo_task.h"
 #include "rtos_monitor.h"
 #include "mqtt_utils.h"
+
+#include "watchdog_task.h"
 
 extern "C" {
 
@@ -110,6 +117,9 @@ I2C i2c(I2C_PORT, I2C_SDA_PIN, I2C_SCL_PIN);
 
 /** @brief Estrutura com dados ambientais do rack (temperatura, umidade, porta, inclinação). */
 environment_t environment;
+
+/** @brief Endereço IP obtido via Wi-Fi (string IPv4). */
+char wifiIpAddress[16] = "0.0.0.0";
 
 /** @brief Flag indicando se cliente MQTT está conectado ao broker. */
 bool mqtt_connected = false;
@@ -265,6 +275,13 @@ int main() {
     oled_render_text();
   }
 
+   {
+     struct netif *netif = &cyw43_state.netif[0];
+     const ip4_addr_t *ip4 = netif_ip4_addr(netif);
+     snprintf(wifiIpAddress, sizeof(wifiIpAddress), "%s", ip4addr_ntoa(ip4));
+     LOG_INFO("[Wi-Fi] IP obtido: %s", wifiIpAddress);
+   }
+
   oled_set_text_line(4, "WiFi Conectado", OLED_ALIGN_CENTER);
   oled_set_text_line(5, WIFI_SSID, OLED_ALIGN_CENTER);
 
@@ -388,10 +405,17 @@ int main() {
   // Cria tasks FreeRTOS para cada funcionalidade
   LOG_INFO("[FreeRTOS] Criando tasks...");
 
+  xTaskCreate(vOledStatusTask, "oled_status_task",
+              RACK_OLED_TASK_STACK_SIZE,
+              NULL, RACK_OLED_TASK_PRIORITY,
+              NULL);
+
+#if ( ( ENABLE_RTOS_ANALYSIS == 1 ) || ( ENABLE_STACK_WATERMARK == 1 ) )
   xTaskCreate(vRTOSMonitorTask, "rtos_monitor",
               RTOS_MONITOR_STACK_SIZE,
               NULL, RTOS_MONITOR_TASK_PRIORITY,
               NULL);
+#endif
   xTaskCreate(vNetworkPollTask, "network_poll_task",
               RACK_NETWORK_POLL_TASK_STACK_SIZE,
               NULL, RACK_NETWORK_POLL_TASK_PRIORITY,
@@ -444,17 +468,22 @@ int main() {
               NULL, RACK_MQTT_TASK_PRIORITY,
               NULL);
 
-  xTaskCreate(vSignsOnTask, "signs_on_task", 
-              RACK_SIGN_ON_TASK_STACK_SIZE,
-              NULL, RACK_SIGN_ON_TASK_PRIORITY,
-              NULL);
+  {
+    const uint32_t watchdogTimeoutMs = 15000;
+    const uint32_t heartbeatWindowMs = 7000;
+    const uint32_t requiredMask = (uint32_t)WatchdogSourceNetworkPoll | (uint32_t)WatchdogSourceCommand;
+    (void)watchdogTaskInit(watchdogTimeoutMs, requiredMask, heartbeatWindowMs);
+  }
+
+
+  cancel_repeating_timer(&bootBlinkTimer);
+  gpio_put(LEDB, false);
+  signsOnStart();
 
   // Inicia o scheduler do FreeRTOS (não retorna em operação normal)
   LOG_INFO("[FreeRTOS] Iniciando scheduler...");
 //  oled_set_text_line(2, "Iniciando scheduler", OLED_ALIGN_CENTER);
 //  oled_render_text();
-  cancel_repeating_timer(&bootBlinkTimer);
-  gpio_put(LEDB, false);
   vTaskStartScheduler();
 
   // Se chegar aqui, houve falha ao iniciar o scheduler
@@ -773,13 +802,8 @@ void dns_check_callback(const char *name, const ip_addr_t *ipaddr,
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
     (void)xTask;  
     LOG_WARN("[FreeRTOS] STACK OVERFLOW detectado na task: %s", pcTaskName);
-    // Loop infinito para facilitar debug - o sistema deve ser reiniciado
-    bool state = false;
-    for (;;) {
-      gpio_put(LEDR, state);
-      state = !state;
-      busy_wait_ms(200);
-    }
+    watchdog_reboot(0, 0, 0);
+    for (;;) { tight_loop_contents(); }
 }
 
 /**
@@ -790,13 +814,8 @@ void vApplicationMallocFailedHook(void)
     LOG_WARN("[FreeRTOS] Memória insuficiente!");
     /* Parar execução em caso de falha de alocação */
     taskDISABLE_INTERRUPTS();
-    bool state = false;
-    for (;;)
-    {
-      gpio_put(LEDR, state);
-      state = !state;
-      busy_wait_ms(200);
-    }
+    watchdog_reboot(0, 0, 0);
+    for (;;) { tight_loop_contents(); }
 }
 
 /**

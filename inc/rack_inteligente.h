@@ -52,6 +52,9 @@ extern char mqtt_rack_topic[50];
 /** @brief Nome/identificador do rack. */
 extern char rack_name[50];
 
+/** @brief Endereço IP obtido via Wi-Fi (string IPv4). */
+extern char wifiIpAddress[16];
+
 /** @} */ // fim ExternVars
 
 /**

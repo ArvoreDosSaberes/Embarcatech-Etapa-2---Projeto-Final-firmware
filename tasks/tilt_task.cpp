@@ -13,6 +13,10 @@
 
 #include <math.h>
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#include "wcet_probe.h"
+#endif
+
 extern "C" {
 extern EventGroupHandle_t xEventGroup;
 extern environment_t environment;
@@ -30,6 +34,10 @@ void vTiltTask(void *pvParameters){
     bool lastTilt = false;
     for (;;) {
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        const uint64_t loopStartUs = wcetProbeNowUs();
+#endif
+
         bool tiltFlag = tilt();
         LOG_INFO("[Tilt Task] Tilt: %d", tiltFlag);
         if(tiltFlag != lastTilt){
@@ -39,12 +47,19 @@ void vTiltTask(void *pvParameters){
             lastTilt = tiltFlag;
         }
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        wcetProbeRecord("tilt.loop_active", loopStartUs, wcetProbeNowUs());
+#endif
+
         vTaskDelay(pdMS_TO_TICKS(RACK_TILT_TASK_DELAY));
     }
 }
 
 // Implementação de detecção de pancadas usando aceleração do MPU6050
 extern "C" bool tilt() {
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+    const uint64_t tiltStartUs = wcetProbeNowUs();
+#endif
     static float baseline = 1.0f; // ~1 g parado
 
     MPU6050::VECT_3D acc;
@@ -58,6 +73,10 @@ extern "C" bool tilt() {
     float delta = mag - baseline;
 
     LOG_INFO("[Tilt Task.tilt] Delta: %f", delta);
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+    wcetProbeRecord("tilt.compute", tiltStartUs, wcetProbeNowUs());
+#endif
     return (delta > TILT_THRESHOLD);
 }
 }

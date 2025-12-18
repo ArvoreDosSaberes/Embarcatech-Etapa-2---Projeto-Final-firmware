@@ -26,6 +26,10 @@
 #include "rack_inteligente_parametros.h"
 #include "door_servo_task.h"
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#include "wcet_probe.h"
+#endif
+
 /* ============================================================================
  * Configurações de hardware do servo
  * ============================================================================ */
@@ -223,6 +227,10 @@ void doorServoOpen(bool smooth) {
         LOG_WARN("[DoorServo] Módulo não inicializado");
         return;
     }
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+    const uint64_t opStartUs = wcetProbeNowUs();
+#endif
     
     LOG_INFO("[DoorServo] Abrindo porta (smooth=%s)", smooth ? "sim" : "não");
     
@@ -246,6 +254,10 @@ void doorServoOpen(bool smooth) {
     
     currentState = DOOR_SERVO_STATE_OPEN;
     LOG_INFO("[DoorServo] Porta aberta (180°)");
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+    wcetProbeRecord("door_servo.open", opStartUs, wcetProbeNowUs());
+#endif
 }
 
 void doorServoClose(bool smooth) {
@@ -253,6 +265,10 @@ void doorServoClose(bool smooth) {
         LOG_WARN("[DoorServo] Módulo não inicializado");
         return;
     }
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+    const uint64_t opStartUs = wcetProbeNowUs();
+#endif
     
     LOG_INFO("[DoorServo] Fechando porta (smooth=%s)", smooth ? "sim" : "não");
     
@@ -276,6 +292,10 @@ void doorServoClose(bool smooth) {
     
     currentState = DOOR_SERVO_STATE_CLOSED;
     LOG_INFO("[DoorServo] Porta fechada (0°)");
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+    wcetProbeRecord("door_servo.close", opStartUs, wcetProbeNowUs());
+#endif
 }
 
 bool doorServoIsOpen(void) {

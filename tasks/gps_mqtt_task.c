@@ -9,6 +9,10 @@
 #include "mqtt_utils.h"
 #include "task.h"
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#include "wcet_probe.h"
+#endif
+
 
 extern char mqtt_rack_topic[50];
 extern EventGroupHandle_t xEventGroup;
@@ -31,6 +35,10 @@ void vGpsMqttTask(void *pvParameters) {
              pdTRUE,
              portMAX_DELAY);
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        const uint64_t activeStartUs = wcetProbeNowUs();
+#endif
+
         LOG_INFO("[Gps MQTT Task] Evento recebido: %02x", xEventBits);
         if(xEventBits & xGpsBitsToWaitFor){
             LOG_INFO("[Gps MQTT Task] Gps detectado!");
@@ -39,10 +47,20 @@ void vGpsMqttTask(void *pvParameters) {
             LOG_INFO("[Gps MQTT Task] Altitude: %f", environment.gps_position.altitude);
             LOG_INFO("[Gps MQTT Task] Time: %d", environment.gps_position.time);
             LOG_INFO("[Gps MQTT Task] Speed: %f", environment.gps_position.speed);
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+            const uint64_t publishStartUs = wcetProbeNowUs();
+#endif
             publish_rack_gps_position();
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+            wcetProbeRecord("gps_mqtt.publish", publishStartUs, wcetProbeNowUs());
+#endif
         }else {
             vTaskDelay(pdMS_TO_TICKS(1000));
         }
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        wcetProbeRecord("gps_mqtt.loop_active", activeStartUs, wcetProbeNowUs());
+#endif
     }
 }
 

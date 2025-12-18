@@ -20,6 +20,10 @@
 #include "buzzer_pwm_task.h"
 #include "command_mqtt_task.h"
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#include "wcet_probe.h"
+#endif
+
 // Variáveis Locais
 extern EventGroupHandle_t xEventGroup;
 extern environment_t environment;
@@ -53,12 +57,31 @@ void vDoorStateMqttTask(void *pvParameters) {
             pdTRUE,
             pdFALSE,
             pdMS_TO_TICKS(60000)); // Espera 60 segundos, assim mantem uma comunicação regular com o broker
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        const uint64_t activeStartUs = wcetProbeNowUs();
+#endif
         
         LOG_DEBUG("[Door State MQTT Task] Evento recebido: %d", uxBits);
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        const uint64_t publishStartUs = wcetProbeNowUs();
+#endif
         publish_door_state(environment.door);
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        wcetProbeRecord("door_state_mqtt.publish", publishStartUs, wcetProbeNowUs());
+#endif
         
         /* Verifica timeout de porta aberta */
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        const uint64_t timeoutCheckStartUs = wcetProbeNowUs();
+#endif
         check_door_open_timeout();
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        wcetProbeRecord("door_state_mqtt.timeout_check", timeoutCheckStartUs, wcetProbeNowUs());
+        wcetProbeRecord("door_state_mqtt.loop_active", activeStartUs, wcetProbeNowUs());
+#endif
 
         vTaskDelay(pdMS_TO_TICKS(100));
     }

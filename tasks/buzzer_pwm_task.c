@@ -27,6 +27,10 @@
 #include "rack_inteligente_parametros.h"
 #include "buzzer_pwm_task.h"
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#include "wcet_probe.h"
+#endif
+
 /* ============================================================================
  * Configurações de hardware
  * ============================================================================ */
@@ -394,9 +398,15 @@ void buzzerPwmTask(void *pvParameters) {
     LOG_INFO("[Buzzer/PWM] Task iniciada");
     
     for (;;) {
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        const uint64_t loopStartUs = wcetProbeNowUs();
+#endif
         /* Processa beep único se requisitado */
         if (processBeepRequest()) {
             /* Após beep, continua com estado atual */
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+            wcetProbeRecord("buzzer_pwm.beep_request", loopStartUs, wcetProbeNowUs());
+#endif
             continue;
         }
         
@@ -418,10 +428,20 @@ void buzzerPwmTask(void *pvParameters) {
         
         /* Executa padrão se ativo */
         if (currentPattern != NULL) {
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+            const uint64_t patternStartUs = wcetProbeNowUs();
+#endif
             executePatternCycle(currentPattern, &cycleCount, &inHighPhase);
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+            wcetProbeRecord("buzzer_pwm.pattern_cycle", patternStartUs, wcetProbeNowUs());
+#endif
         } else {
             /* Buzzer desligado - aguarda mudança de estado */
             ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(RACK_BUZZER_TASK_DELAY));
         }
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        wcetProbeRecord("buzzer_pwm.loop_active", loopStartUs, wcetProbeNowUs());
+#endif
     }
 }

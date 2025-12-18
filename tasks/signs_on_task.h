@@ -5,7 +5,9 @@
 extern "C" {
 #endif
 
-void vSignsOnTask(void *pvParameters);
+void signsOnInit(void);
+void signsOnStart(void);
+void signsOnStop(void);
 
 #ifdef __cplusplus
 }

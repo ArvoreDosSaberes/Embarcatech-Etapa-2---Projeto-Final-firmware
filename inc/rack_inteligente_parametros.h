@@ -25,45 +25,8 @@
 #ifndef RACK_INTELIGENTE_PARAMETROS_H
 #define RACK_INTELIGENTE_PARAMETROS_H
 
-/* ============================================================================
- * Verificação de Macros Obrigatórias (definidas via CMake)
- * ============================================================================ */
+#include "freertos_app_sizing.h"
 
-#ifndef WIFI_SSID
-#error "WIFI_SSID não definido. Configure em env.cmake."
-#endif
-
-#ifndef WIFI_PASSWORD
-#error "WIFI_PASSWORD não definido. Configure em env.cmake."
-#endif
-
-#ifndef MQTT_BROKER
-#error "MQTT_BROKER não definido. Configure em env.cmake."
-#endif
-
-#ifndef MQTT_PORT
-#error "MQTT_PORT não definido. Configure em env.cmake."
-#endif
-
-#ifndef MQTT_CLIENT_ID
-#error "MQTT_CLIENT_ID não definido. Configure em env.cmake."
-#endif
-
-#ifndef MQTT_USERNAME
-#error "MQTT_USERNAME não definido. Configure em env.cmake."
-#endif
-
-#ifndef MQTT_PASSWORD
-#error "MQTT_PASSWORD não definido. Configure em env.cmake."
-#endif
-
-#ifndef MQTT_BASE_TOPIC
-#error "MQTT_BASE_TOPIC não definido. Configure em env.cmake."
-#endif
-
-#ifndef MQTT_RACK_NUMBER
-#error "MQTT_RACK_NUMBER não definido. Configure em env.cmake."
-#endif
 
 /* ============================================================================
  * Pinos GPIO - LEDs da BitDogLab
@@ -169,24 +132,24 @@
 #define DOOR_SERVO_ANGLE_OPEN       179
 
 /* Parâmetros da task do buzzer PWM */
-#define RACK_BUZZER_TASK_STACK_SIZE         (configMINIMAL_STACK_SIZE * 1)
+#define RACK_BUZZER_TASK_STACK_SIZE         APP_TASK_STACK_DEPTH_RACK_BUZZER
 #define RACK_BUZZER_TASK_PRIORITY           (tskIDLE_PRIORITY + 4)
 #define RACK_BUZZER_TASK_DELAY              (1000)
 
-#define RACK_OLED_TASK_STACK_SIZE           (configMINIMAL_STACK_SIZE * 2)
+#define RACK_OLED_TASK_STACK_SIZE           APP_TASK_STACK_DEPTH_RACK_OLED
 #define RACK_OLED_TASK_PRIORITY             (tskIDLE_PRIORITY + 5)
 
-#define RACK_MQTT_TASK_STACK_SIZE           (configMINIMAL_STACK_SIZE * 2)
+#define RACK_MQTT_TASK_STACK_SIZE           APP_TASK_STACK_DEPTH_RACK_MQTT
 #define RACK_MQTT_TASK_PRIORITY             (tskIDLE_PRIORITY + 5)
 
-#define RACK_DOOR_MQTT_TASK_STACK_SIZE           (configMINIMAL_STACK_SIZE * 1)
+#define RACK_DOOR_MQTT_TASK_STACK_SIZE           APP_TASK_STACK_DEPTH_RACK_DOOR_MQTT
 #define RACK_DOOR_MQTT_TASK_PRIORITY             (tskIDLE_PRIORITY + 5)
 
-#define RACK_POLLING_TASK_STACK_SIZE        (configMINIMAL_STACK_SIZE * 1)
+#define RACK_POLLING_TASK_STACK_SIZE        APP_TASK_STACK_DEPTH_RACK_POLLING
 #define RACK_POLLING_TASK_PRIORITY          (tskIDLE_PRIORITY + 5)
 #define RACK_POLLING_TASK_DELAY             (5000)
 
-#define RACK_GPS_TASK_STACK_SIZE            (configMINIMAL_STACK_SIZE * 2)
+#define RACK_GPS_TASK_STACK_SIZE            APP_TASK_STACK_DEPTH_RACK_GPS
 #define RACK_GPS_TASK_PRIORITY              (tskIDLE_PRIORITY + 5)
 /**
  * @brief Intervalo de publicação GPS em milissegundos.
@@ -196,32 +159,32 @@
  */
 #define RACK_GPS_TASK_DELAY                 (30000)
 
-#define RACK_GPS_MQTT_TASK_STACK_SIZE       (configMINIMAL_STACK_SIZE * 2)
+#define RACK_GPS_MQTT_TASK_STACK_SIZE       APP_TASK_STACK_DEPTH_RACK_GPS_MQTT
 #define RACK_GPS_MQTT_TASK_PRIORITY         (tskIDLE_PRIORITY + 5)
 #define RACK_GPS_MQTT_TASK_DELAY            (1000)
 
-#define RACK_TMP_HUM_TASK_STACK_SIZE        (configMINIMAL_STACK_SIZE * 2)
+#define RACK_TMP_HUM_TASK_STACK_SIZE        APP_TASK_STACK_DEPTH_RACK_TMP_HUM
 #define RACK_TMP_HUM_TASK_PRIORITY          (tskIDLE_PRIORITY + 5)
 #define RACK_TMP_HUM_TASK_DELAY             (1000)
 
-#define RACK_TMP_MQTT_TASK_STACK_SIZE       (configMINIMAL_STACK_SIZE * 2)
+#define RACK_TMP_MQTT_TASK_STACK_SIZE       APP_TASK_STACK_DEPTH_RACK_TMP_MQTT
 #define RACK_TMP_MQTT_TASK_PRIORITY         (tskIDLE_PRIORITY + 5)
 
-#define RACK_SIGN_ON_TASK_STACK_SIZE        (configMINIMAL_STACK_SIZE * 1)
+#define RACK_SIGN_ON_TASK_STACK_SIZE        APP_TASK_STACK_DEPTH_RACK_SIGN_ON
 #define RACK_SIGN_ON_TASK_PRIORITY          (tskIDLE_PRIORITY + 5)
 #define RACK_SIGN_ON_TASK_DELAY             (1000)
 
-#define RACK_NETWORK_POLL_TASK_STACK_SIZE   (configMINIMAL_STACK_SIZE * 1)
+#define RACK_NETWORK_POLL_TASK_STACK_SIZE   APP_TASK_STACK_DEPTH_RACK_NETWORK_POLL
 // NOTA: Prioridade aumentada para garantir que a stack TCP/IP seja processada regularmente
 // Prioridade 0 (idle) causava perda de conexão Wi-Fi e timeouts MQTT
 #define RACK_NETWORK_POLL_TASK_PRIORITY     (tskIDLE_PRIORITY + 3)
 #define RACK_NETWORK_POLL_TASK_DELAY        (5000)
 
-#define RACK_TILT_TASK_STACK_SIZE           (configMINIMAL_STACK_SIZE * 2)
+#define RACK_TILT_TASK_STACK_SIZE           APP_TASK_STACK_DEPTH_RACK_TILT
 #define RACK_TILT_TASK_PRIORITY             (tskIDLE_PRIORITY + 5)
 #define RACK_TILT_TASK_DELAY                (2000)
 
-#define RTOS_MONITOR_STACK_SIZE             (configMINIMAL_STACK_SIZE * 3)
+#define RTOS_MONITOR_STACK_SIZE             APP_TASK_STACK_DEPTH_RTOS_MONITOR
 #define RTOS_MONITOR_TASK_PRIORITY          (tskIDLE_PRIORITY + 2)
 /**
  * @brief Número máximo de tarefas para análise de watermark.
@@ -234,13 +197,17 @@
 /**
  * @brief Intervalo de monitoramento em milissegundos.
  */
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#define RTOS_MONITOR_INTERVAL_MS            (2000)
+#else
 #define RTOS_MONITOR_INTERVAL_MS            (30000)
+#endif
 
 /** @brief Tamanho da fila de comandos */
 #define COMMAND_QUEUE_SIZE      8
 
 /** @brief Stack size da task de comandos */
-#define COMMAND_TASK_STACK_SIZE (configMINIMAL_STACK_SIZE * 3)
+#define COMMAND_TASK_STACK_SIZE APP_TASK_STACK_DEPTH_COMMAND
 
 /** @brief Prioridade da task de comandos */
 #define COMMAND_TASK_PRIORITY   (tskIDLE_PRIORITY + 4)

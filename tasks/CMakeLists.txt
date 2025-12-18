@@ -18,6 +18,7 @@ target_link_libraries(rack_tasks
         hardware_i2c
         hardware_dma
         hardware_timer
+        hardware_watchdog
         hardware_adc
         hardware_pio
         hardware_clocks
@@ -34,4 +35,6 @@ target_link_libraries(rack_tasks
         i2c_proxy
         mpu6050
         keyboard_menu_freertos
+
+        rtos_analysis
 )

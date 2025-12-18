@@ -10,6 +10,10 @@
 
 // NOTA: LOG_INFO removido do ISR callback - não é seguro usar printf em contexto de interrupção
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#include "wcet_probe.h"
+#endif
+
 #include "gpio_state_callback.h"
 #include "command_mqtt_task.h"
 #include "rack_event_groups.h"
@@ -25,6 +29,10 @@ extern environment_t environment;
 void gpioStateChangeCallBack(unsigned int gpio, uint32_t events){
   // NOTA: Callback de ISR - NÃO usar LOG_INFO aqui pois printf não é ISR-safe
   // e pode causar corrupção da saída serial ou travamento
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+  const uint64_t isrStartUs = wcetProbeNowUs();
+#endif
 
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
@@ -52,4 +60,8 @@ void gpioStateChangeCallBack(unsigned int gpio, uint32_t events){
   if (xHigherPriorityTaskWoken) {
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
   }
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+  wcetProbeRecordIsr("gpio_state_callback.isr", isrStartUs, wcetProbeNowUs());
+#endif
 }

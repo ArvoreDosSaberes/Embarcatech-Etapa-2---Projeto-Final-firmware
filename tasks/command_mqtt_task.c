@@ -26,6 +26,11 @@
 #include "command_mqtt_task.h"
 #include "buzzer_pwm_task.h"
 #include "door_servo_task.h"
+#include "watchdog_task.h"
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#include "wcet_probe.h"
+#endif
 
 /* Referências externas */
 extern bool mqtt_connected;
@@ -44,9 +49,6 @@ static BuzzerState buzzerState = BUZZER_OFF;
 
 /** @brief Tamanho da fila de comandos */
 #define COMMAND_QUEUE_SIZE      8
-
-/** @brief Stack size da task de comandos */
-#define COMMAND_TASK_STACK_SIZE (configMINIMAL_STACK_SIZE * 3)
 
 /** @brief Prioridade da task de comandos */
 #define COMMAND_TASK_PRIORITY   (tskIDLE_PRIORITY + 4)
@@ -255,12 +257,18 @@ static void executeCommandBuzzer(int value) {
 void commandProcessingTask(void *pvParameters) {
     (void)pvParameters;
     CommandQueueItem cmd;
+    TickType_t lastStatusPublishTick = 0;
     
     LOG_INFO("[Command] Task de processamento iniciada");
     
     for (;;) {
+        watchdogKick((uint32_t)WatchdogSourceCommand);
+
         /* Aguarda comando na fila (bloqueia até receber) */
-        if (xQueueReceive(commandQueue, &cmd, pdMS_TO_TICKS(60000)) == pdTRUE) {
+        if (xQueueReceive(commandQueue, &cmd, pdMS_TO_TICKS(500)) == pdTRUE) {
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+            const uint64_t cmdStartUs = wcetProbeNowUs();
+#endif
             LOG_DEBUG("[Command] Processando comando tipo=%d valor=%d", cmd.type, cmd.value);
             
             switch (cmd.type) {
@@ -277,10 +285,24 @@ void commandProcessingTask(void *pvParameters) {
                     LOG_WARN("[Command] Tipo de comando desconhecido: %d", cmd.type);
                     break;
             }
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+            wcetProbeRecord("command_mqtt.cmd_process", cmdStartUs, wcetProbeNowUs());
+#endif
         } else {
             if (mqtt_connected) {
-                publishCommandAck(COMMAND_TYPE_VENTILATION, getVentilationState() ? 1 : 0);
-                publishCommandAck(COMMAND_TYPE_DOOR, getDoorState() ? 1 : 0);
+                TickType_t now = xTaskGetTickCount();
+                if ((now - lastStatusPublishTick) >= pdMS_TO_TICKS(60000)) {
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+                    const uint64_t statusStartUs = wcetProbeNowUs();
+#endif
+                    publishCommandAck(COMMAND_TYPE_VENTILATION, getVentilationState() ? 1 : 0);
+                    publishCommandAck(COMMAND_TYPE_DOOR, getDoorState() ? 1 : 0);
+                    lastStatusPublishTick = now;
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+                    wcetProbeRecord("command_mqtt.status_publish", statusStartUs, wcetProbeNowUs());
+#endif
+                }
             }
         }
     }

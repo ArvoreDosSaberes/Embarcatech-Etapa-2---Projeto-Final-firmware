@@ -28,6 +28,9 @@
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
 
+#include "inc/freertos_app_sizing.h"
+#include <stdint.h>
+
 /*-----------------------------------------------------------
  * Application specific definitions.
  *
@@ -72,7 +75,7 @@
 /* Memory allocation related definitions. */
 #define configSUPPORT_STATIC_ALLOCATION         1
 #define configSUPPORT_DYNAMIC_ALLOCATION        1
-#define configTOTAL_HEAP_SIZE                   (128*1024)
+#define configTOTAL_HEAP_SIZE                   ( ( size_t ) APP_FREERTOS_TOTAL_HEAP_BYTES )
 #define configAPPLICATION_ALLOCATED_HEAP        0
 
 /* Hook function related definitions. */
@@ -83,9 +86,29 @@
 #define configUSE_DAEMON_TASK_STARTUP_HOOK      0
 
 /* Run time and task stats gathering related definitions. */
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#define configGENERATE_RUN_TIME_STATS           1
+#else
 #define configGENERATE_RUN_TIME_STATS           0
+#endif
 #define configUSE_TRACE_FACILITY                1
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#define configUSE_STATS_FORMATTING_FUNCTIONS    1
+#else
 #define configUSE_STATS_FORMATTING_FUNCTIONS    0
+#endif
+
+#if ( configGENERATE_RUN_TIME_STATS == 1 )
+#ifdef __cplusplus
+extern "C" {
+#endif
+uint64_t time_us_64(void);
+#ifdef __cplusplus
+}
+#endif
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()
+#define portGET_RUN_TIME_COUNTER_VALUE()        ( (uint32_t) time_us_64() )
+#endif
 
 /* 
  * Habilita registro do endereço alto da pilha para cálculo do tamanho total.
@@ -145,6 +168,50 @@ to exclude the API function. */
 #define INCLUDE_xTaskResumeFromISR              1
 #define INCLUDE_xQueueGetMutexHolder            1
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#define INCLUDE_pcTaskGetName                   1
+#endif
+
 /* A header file that defines trace macro can be included here. */
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#include "lib/rtos_analysis/rtos_trace.h"
+
+#ifndef traceTASK_SWITCHED_IN
+#define traceTASK_SWITCHED_IN() \
+    rtosTraceOnSwitchIn((void *)pxCurrentTCB, pcTaskGetName(NULL))
+#endif
+
+#ifndef traceTASK_SWITCHED_OUT
+#define traceTASK_SWITCHED_OUT() \
+    rtosTraceOnSwitchOut((void *)pxCurrentTCB, pcTaskGetName(NULL))
+#endif
+
+#ifndef traceTASK_DELAY
+#define traceTASK_DELAY() \
+    rtosTraceSetNextSwitchOutReason(RTOS_TRACE_REASON_DELAY, 0u)
+#endif
+
+#ifndef traceBLOCKING_ON_QUEUE_RECEIVE
+#define traceBLOCKING_ON_QUEUE_RECEIVE(pxQueue) \
+    rtosTraceSetNextSwitchOutReason(RTOS_TRACE_REASON_QUEUE_RECV, 0u)
+#endif
+
+#ifndef traceBLOCKING_ON_QUEUE_SEND
+#define traceBLOCKING_ON_QUEUE_SEND(pxQueue) \
+    rtosTraceSetNextSwitchOutReason(RTOS_TRACE_REASON_QUEUE_SEND, 0u)
+#endif
+
+#ifndef traceTASK_NOTIFY_TAKE
+#define traceTASK_NOTIFY_TAKE(uxIndexToWait) \
+    rtosTraceSetNextSwitchOutReason(RTOS_TRACE_REASON_NOTIFY, 0u)
+#endif
+
+#ifndef traceTASK_NOTIFY_WAIT
+#define traceTASK_NOTIFY_WAIT(uxIndexToWait) \
+    rtosTraceSetNextSwitchOutReason(RTOS_TRACE_REASON_NOTIFY, 0u)
+#endif
+
+#endif
 
 #endif /* FREERTOS_CONFIG_H */

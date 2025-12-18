@@ -80,18 +80,33 @@ if(NOT DEFINED ENV{LOG_LEVEL} OR "$ENV{LOG_LEVEL}" STREQUAL "")
     set(ENV{LOG_LEVEL} "1")
 endif()
 
+# Habilita instrumentação e logs avançados para análise (RTOS/WCET/estatísticas)
+# Defina ENABLE_RTOS_ANALYSIS=1 no env.cmake para ativar
+if(DEFINED ENV{ENABLE_RTOS_ANALYSIS} AND "$ENV{ENABLE_RTOS_ANALYSIS}" STREQUAL "1")
+    set(ENABLE_RTOS_ANALYSIS 1)
+    message(STATUS "RTOS analysis habilitado (instrumentação e logs técnicos)")
+else()
+    set(ENABLE_RTOS_ANALYSIS 0)
+endif()
+
+message(STATUS "ENABLE_RTOS_ANALYSIS: ${ENABLE_RTOS_ANALYSIS}")
+
 # Habilita análise de watermark de pilha das tarefas FreeRTOS
 # Defina ENABLE_STACK_WATERMARK=1 no env.cmake para ativar
 if(DEFINED ENV{ENABLE_STACK_WATERMARK} AND "$ENV{ENABLE_STACK_WATERMARK}" STREQUAL "1")
     set(ENABLE_STACK_WATERMARK 1)
     message(STATUS "Stack Watermark habilitado para análise de pilha das tarefas")
+elseif(ENABLE_RTOS_ANALYSIS)
+    set(ENABLE_STACK_WATERMARK 1)
+    message(STATUS "Stack Watermark habilitado por dependência de ENABLE_RTOS_ANALYSIS")
 else()
     set(ENABLE_STACK_WATERMARK 0)
 endif()
 
+message(STATUS "ENABLE_STACK_WATERMARK: ${ENABLE_STACK_WATERMARK}")
+
 set(LOG_LEVEL "$ENV{LOG_LEVEL}")
 message(STATUS "LOG_LEVEL: ${LOG_LEVEL}")
-
 
 set(WIFI_SSID "$ENV{WIFI_SSID}")
 set(WIFI_PASSWORD "$ENV{WIFI_PASSWORD}")
@@ -112,7 +127,6 @@ message(STATUS "MQTT_PORT: ${MQTT_PORT}")
 message(STATUS "MQTT_CLIENT_ID: ${MQTT_CLIENT_ID}")
 message(STATUS "MQTT_BASE_TOPIC: ${MQTT_BASE_TOPIC}")
 message(STATUS "MQTT_RACK_NUMBER: ${MQTT_RACK_NUMBER}")
-
 
 # Define the name of an MQTT broker/server to enable this example
 set(WIFI_SSID "${WIFI_SSID}" CACHE INTERNAL "Wi-Fi SSID for examples")
@@ -140,6 +154,9 @@ pico_sdk_init()
 # Disponibiliza LOG_LEVEL como macro de compilação para todos os alvos deste projeto
 add_compile_definitions(LOG_LEVEL=${LOG_LEVEL})
 
+# Disponibiliza ENABLE_RTOS_ANALYSIS como macro de compilação
+add_compile_definitions(ENABLE_RTOS_ANALYSIS=${ENABLE_RTOS_ANALYSIS})
+
 # Disponibiliza ENABLE_STACK_WATERMARK como macro de compilação
 add_compile_definitions(ENABLE_STACK_WATERMARK=${ENABLE_STACK_WATERMARK})
 
@@ -164,6 +181,7 @@ pico_enable_stdio_usb(rack_inteligente 1)
 target_link_libraries(rack_inteligente PUBLIC
         pico_stdlib
         hardware_adc
+        hardware_watchdog
 
         rack_includes
         log_vt100
@@ -175,6 +193,9 @@ target_link_libraries(rack_inteligente PUBLIC
         keyboard_menu_freertos
         
         rack_tasks
+        
+        rtos_analysis
+        
         )
 
 link_freertos(rack_inteligente)

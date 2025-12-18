@@ -8,6 +8,10 @@
 #include "lwip/apps/mqtt.h"
 #include "mqtt_utils.h"
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+#include "wcet_probe.h"
+#endif
+
 extern environment_t environment;
 extern mqtt_client_t *mqtt_client;
 extern char mqtt_rack_topic[50];
@@ -28,11 +32,27 @@ void vTiltMqttTask(void *pvParameters) {
              pdTRUE,
              portMAX_DELAY);
 
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        const uint64_t activeStartUs = wcetProbeNowUs();
+#endif
+
         LOG_INFO("[Tilt MQTT Task] Evento recebido: %02x", xEventBits);
         if(xEventBits & xTiltBitsToWaitFor){
             LOG_INFO("[Tilt MQTT Task] Tilt detectado!");
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+            const uint64_t publishStartUs = wcetProbeNowUs();
+#endif
             publish_tilt_mqtt(environment.tilt);
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+            wcetProbeRecord("tilt_mqtt.publish", publishStartUs, wcetProbeNowUs());
+#endif
         }
+
+#if ( ENABLE_RTOS_ANALYSIS == 1 )
+        wcetProbeRecord("tilt_mqtt.loop_active", activeStartUs, wcetProbeNowUs());
+#endif
     }
 }
 
